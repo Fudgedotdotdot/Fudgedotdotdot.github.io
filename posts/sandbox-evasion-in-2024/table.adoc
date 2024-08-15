@@ -1,0 +1,374 @@
+|===
+| Sandbox | IP | ASN | Country
+.37+|GENERIC
+| 185.127.206.212
+| AS60804 Swiss Network SA
+| Switzerland
+| 185.127.206.212
+| AS60804 Swiss Network SA
+| Switzerland
+| 185.127.206.212
+| AS60804 Swiss Network SA
+| Switzerland
+| 91.90.42.154
+| AS50304 Blix Solutions AS
+| Norway
+| 20.114.22.115
+| AS8075 Microsoft Corporation
+| United States
+| 20.163.64.196
+| AS8075 Microsoft Corporation
+| United States
+| 66.102.6.198
+| AS15169 Google LLC
+| United States
+| 104.237.170.21
+| AS36040 Google LLC
+| Brazil
+| 139.186.206.86
+| AS45090 Shenzhen Tencent Computer Systems Company Limited
+| China
+| 195.74.76.223
+| AS198605 AVAST Software s.r.o.
+| Czech Republic
+| 195.74.76.223
+| AS198605 AVAST Software s.r.o.
+| Czech Republic
+| 66.249.88.1
+| AS15169 Google LLC
+| United States
+| 91.90.42.154
+| AS50304 Blix Solutions AS
+| Norway
+| 79.104.209.13
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 195.239.51.29
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 89.208.29.126
+| AS12695 LLC Digital Network
+| Russia
+| 89.208.29.126
+| AS12695 LLC Digital Network
+| Russia
+| 195.239.51.29
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 213.33.190.138
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 213.33.190.138
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 194.154.78.246
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 213.33.190.138
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 66.102.6.192
+| AS15169 Google LLC
+| United States
+| 195.74.76.223
+| AS198605 AVAST Software s.r.o.
+| Czech Republic
+| 84.57.171.79
+| AS3209 Vodafone GmbH
+| Germany
+| 84.147.62.251
+| AS3320 Deutsche Telekom AG
+| Germany
+| 106.75.32.241
+| AS4808 China Unicom Beijing Province Network
+| China
+| 106.75.32.241
+| AS4808 China Unicom Beijing Province Network
+| China
+| 185.44.177.231
+| AS16509 Amazon.com, Inc.
+| Germany
+| 139.186.206.86
+| AS45090 Shenzhen Tencent Computer Systems Company Limited
+| China
+| 66.249.88.2
+| AS15169 Google LLC
+| United States
+| 20.163.64.196
+| AS8075 Microsoft Corporation
+| United States
+| 20.163.64.196
+| AS8075 Microsoft Corporation
+| United States
+| 20.163.64.196
+| AS8075 Microsoft Corporation
+| United States
+| 66.102.6.150
+| AS15169 Google LLC
+| United States
+| 20.163.64.196
+| AS8075 Microsoft Corporation
+| United States
+| 66.102.6.70
+| AS15169 Google LLC
+| United States
+.25+|VirusTotal
+| 20.99.160.173
+| AS8075 Microsoft Corporation
+| United States
+| 20.99.160.173
+| AS8075 Microsoft Corporation
+| United States
+| 35.194.56.110
+| AS396982 Google LLC
+| United States
+| 34.141.245.25
+| AS396982 Google LLC
+| Netherlands
+| 20.163.64.196
+| AS8075 Microsoft Corporation
+| United States
+| 84.147.62.251
+| AS3320 Deutsche Telekom AG
+| Germany
+| 20.163.64.196
+| AS8075 Microsoft Corporation
+| United States
+| 213.33.190.144
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 79.104.209.201
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 2.94.86.136
+| AS8402 PJSC "Vimpelcom"
+| Russia
+| 20.163.64.196
+| AS8075 Microsoft Corporation
+| United States
+| 79.104.209.252
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 79.104.209.201
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 194.154.78.255
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 79.104.209.215
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 79.104.209.215
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 194.154.78.255
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 84.147.62.251
+| AS3320 Deutsche Telekom AG
+| Germany
+| 88.67.134.91
+| AS3209 Vodafone GmbH
+| Germany
+| 50.202.95.5
+| AS7922 Comcast Cable Communications, LLC
+| United States
+| 195.74.76.223
+| AS198605 AVAST Software s.r.o.
+| Czech Republic
+| 195.74.76.223
+| AS198605 AVAST Software s.r.o.
+| Czech Republic
+| 139.186.206.86
+| AS45090 Shenzhen Tencent Computer Systems Company Limited
+| China
+| 195.74.76.223
+| AS198605 AVAST Software s.r.o.
+| Czech Republic
+| 20.163.64.196
+| AS8075 Microsoft Corporation
+| United States
+.33+|Recorded Furture Triage
+| 20.99.160.173
+| AS8075 Microsoft Corporation
+| United States
+| 20.99.160.173
+| AS8075 Microsoft Corporation
+| United States
+| 191.101.209.39
+| AS3257 GTT Communications Inc.
+| United Kingdom
+| 20.99.160.173
+| AS8075 Microsoft Corporation
+| United States
+| 34.73.60.153
+| AS396982 Google LLC
+| United States
+| 34.17.49.70
+| AS396982 Google LLC
+| Italy
+| 20.114.22.115
+| AS8075 Microsoft Corporation
+| United States
+| 20.114.22.115
+| AS8075 Microsoft Corporation
+| United States
+| 84.147.62.251
+| AS3320 Deutsche Telekom AG
+| Germany
+| 20.114.22.115
+| AS8075 Microsoft Corporation
+| United States
+| 89.208.29.125
+| AS12695 LLC Digital Network
+| Russia
+| 2.94.86.136
+| AS8402 PJSC "Vimpelcom"
+| Russia
+| 213.33.190.144
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 20.163.64.196
+| AS8075 Microsoft Corporation
+| United States
+| 79.104.209.201
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 79.104.209.252
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 79.104.209.252
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 89.208.29.125
+| AS12695 LLC Digital Network
+| Russia
+| 79.104.209.201
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 79.104.209.201
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 149.202.79.101
+| AS16276 OVH SAS
+| France
+| 149.255.152.133
+| AS57293 AG Telekom MMC.
+| Azerbaijan
+| 139.186.206.86
+| AS45090 Shenzhen Tencent Computer Systems Company Limited
+| China
+| 139.186.206.86
+| AS45090 Shenzhen Tencent Computer Systems Company Limited
+| China
+| 195.74.76.223
+| AS198605 AVAST Software s.r.o.
+| Czech Republic
+| 195.74.76.223
+| AS198605 AVAST Software s.r.o.
+| Czech Republic
+| 195.74.76.223
+| AS198605 AVAST Software s.r.o.
+| Czech Republic
+| 74.125.210.71
+| AS15169 Google LLC
+| United States
+| 139.186.206.86
+| AS45090 Shenzhen Tencent Computer Systems Company Limited
+| China
+| 84.147.62.251
+| AS3320 Deutsche Telekom AG
+| Germany
+| 195.74.76.223
+| AS198605 AVAST Software s.r.o.
+| Czech Republic
+| 20.114.22.115
+| AS8075 Microsoft Corporation
+| United States
+| 20.163.64.196
+| AS8075 Microsoft Corporation
+| United States
+.26+|Hybrid-Analysis
+| 20.99.160.173
+| AS8075 Microsoft Corporation
+| United States
+| 20.163.64.196
+| AS8075 Microsoft Corporation
+| United States
+| 139.186.206.86
+| AS45090 Shenzhen Tencent Computer Systems Company Limited
+| China
+| 195.74.76.223
+| AS198605 AVAST Software s.r.o.
+| Czech Republic
+| 79.104.209.96
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 213.33.190.17
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 2.94.86.139
+| AS8402 PJSC "Vimpelcom"
+| Russia
+| 89.208.29.126
+| AS12695 LLC Digital Network
+| Russia
+| 213.33.190.17
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 212.119.227.136
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 79.104.209.96
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 213.33.190.17
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 212.119.227.136
+| AS3216 PJSC "Vimpelcom"
+| Russia
+| 195.74.76.223
+| AS198605 AVAST Software s.r.o.
+| Czech Republic
+| 84.147.62.251
+| AS3320 Deutsche Telekom AG
+| Germany
+| 20.99.160.173
+| AS8075 Microsoft Corporation
+| United States
+| 107.167.169.89
+| AS396982 Google LLC
+| United States
+| 34.141.245.25
+| AS396982 Google LLC
+| Netherlands
+| 20.163.64.196
+| AS8075 Microsoft Corporation
+| United States
+| 185.44.176.86
+| AS16509 Amazon.com, Inc.
+| Germany
+| 209.127.189.74
+| AS55286 B2 Net Solutions Inc.
+| United States
+| 212.138.121.5
+| AS8895 King Abdul Aziz City for Science and Technology
+| Saudi Arabia
+| 139.186.206.86
+| AS45090 Shenzhen Tencent Computer Systems Company Limited
+| China
+| 195.74.76.223
+| AS198605 AVAST Software s.r.o.
+| Czech Republic
+| 181.215.176.9
+| AS174 Cogent Communications
+| United Kingdom
+| 139.186.206.86
+| AS45090 Shenzhen Tencent Computer Systems Company Limited
+| China
+.1+|Yomi By Yoroi
+| 156.146.62.141
+| AS212238 Datacamp Limited
+| Switzerland
+|===

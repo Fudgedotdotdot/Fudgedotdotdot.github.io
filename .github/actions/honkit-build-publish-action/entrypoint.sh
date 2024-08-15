@@ -18,6 +18,6 @@ git config --local user.name "Fudgedotdotdot"
 git config --local user.email "28399056+Fudgedotdotdot@users.noreply.github.com"
 
 echo '[INFO] Pushing gh-pages...'
-git commit -am "Updated with:  $(echo $GITHUB_SHA | cut -c1-7))"
+git commit -am "Updated with:  $(echo $GITHUB_SHA | cut -c1-7)"
 git push origin HEAD:gh-pages --force
 git checkout main
