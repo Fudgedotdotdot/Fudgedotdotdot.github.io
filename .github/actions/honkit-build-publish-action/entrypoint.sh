@@ -2,6 +2,8 @@ echo '[INFO] Building static website...'
 cd ${GITHUB_WORKSPACE}
 git config --global --add safe.directory /github/workspace
 
+npm install honkit-plugin-theme-darkening --save-dev
+
 honkit build
 
 echo '[INFO] Some magic to merge main into gh-pages...'
