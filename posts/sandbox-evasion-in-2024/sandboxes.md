@@ -2,7 +2,7 @@
 
 This post is  about sandbox evasion techniques and their usefulness in more targeted engagements. 
 
-There's a lot of sandboxes evasion techniques, some are simple: query WMI, some are cool: parsing SMBIOS tables, most try to detect sandbox artifacts.  I wanted to know if these techniques are still effective for detecting sandboxes, or if the sandboxes have since been updated to counter them.
+There's a lot of sandbox evasion techniques, some are simple: query WMI, some are cool: parsing SMBIOS tables, most try to detect sandbox artifacts.  I wanted to know if these techniques are still effective for detecting sandboxes, or if the sandboxes have since been updated to counter them.
 
 
 
@@ -61,7 +61,7 @@ There were also a lot of sandboxes that were using this sort of pattern for thei
 - DESKTOP-5HLCS0T\Lv3mvD7Wv6L
 - DESKTOP-0SWEU7Q\AUlDa
 
-The length of the username varied in length but the machine is always 7 characters long.
+The length of the username varied in length, but the machine is always 7 characters long.
 
 Finally, here are the countries that called-back sorted by sandbox. The *GENERIC* one is from *OWASP MetaDefender Sandbox* and other random URL scanning services I could find. 
 
@@ -90,7 +90,7 @@ To help in testing sandbox evasion techniques, I relied on the two following pro
 - [Al-Khaser](https://github.com/LordNoteworthy/al-khaser)
 - [Pafish](https://github.com/a0rtega/pafish)
 
-Both tools were modified to send an HTTP request containing the text that is normally printed to the console. The HTTP server was the same Flask application from the exfil section but with one caveat, I could not figure out how to use a global variable in C/C++ to use as unique ID (stackoverflow answers were simply :  *read in a condescending tone: "you shouldn't use global variables, here's the better way"*), so I used the source IP as a unique identifier and appending to the log file if the IP was already seen. 
+Both tools were modified to send an HTTP request containing the text that is normally printed to the console. The HTTP server was the same Flask application from the exfiltration section but with one caveat, I could not figure out how to use a global variable in C/C++ to use as unique ID (stackoverflow answers were simply :  *read in a condescending tone: "you shouldn't use global variables, here's the better way"*), so I used the source IP as a unique identifier and appending to the log file if the IP was already seen. 
 
 A week after uploading the files to the sandboxes, the results were the following :
 - 32 unique IPs for *Al-Khaser* 
@@ -106,11 +106,11 @@ A week after uploading the files to the sandboxes, the results were the followin
 that are typically relocated on a virtual machine. One such table is the
 Interrupt Descriptor Table (IDT), which tells the system where various operating
 system interrupt handlers are located in memory. On real machines, the IDT is
-located lower in memory than it is on guest (i.e., virtual) machines*
+located lower in memory than it is on guest (i.e., virtual) machines.*
 
 > *PS: Does not seem to work on newer version of VMWare Workstation (Tested on v12)*
 
-I'm not sure if that means that the results are a false positive, but since it should not work on newer versions of VMWare Workstation, lets ignore it. 
+I'm not sure if that means that the results are a false positive, but since it should not work on newer versions of VMWare Workstation, let’s ignore it. 
 
 Both *Checking for Hyper-V global objects* and *Checking_SMBIOS_tables* techniques seem to be an effective method to detect sandboxes. Another advantage is they don't get flagged as anti-vm techniques by the sanboxes. 
 
@@ -123,7 +123,7 @@ Both *Checking for Hyper-V global objects* and *Checking_SMBIOS_tables* techniqu
 
 *The data was limited to techniques that detected at least 5 sandboxes*
 
-The *NtYieldExecution* is a antidebugging technique that doesn't seem very reliable as it considers my machine to be a sandbox. The unreliablility is also recognized in the source code : 
+The *NtYieldExecution* is a antidebugging technique that doesn't seem very reliable as it considers my machine to be a sandbox. The unreliability is also recognized in the source code : 
 > *However, this is a hopelessly unreliable method for detecting a debugger because it will also detect the presence of a thread that is running with high priority*
 
 
@@ -160,16 +160,16 @@ The other techniques either use WMI, which we already discarded due to its detec
 
 ## Results analysis
 
-A lot of these techniques are well known by antivirus solutions, and even if they do detect sandboxes, the added scrutiny associated with our *totally legitimate program* being classified as malicious is not worth the tradeoff. Furthermore, even the techniques that are not directly considered to be malicious, they don't detect every sandboxes we encountered. Although some candidates can detect most sandboxes like *Local Descriptor Table Location* or *mouse mouvements*, couldn't we use something simpler and less known ?
+A lot of these techniques are well known by antivirus solutions, and even if they do detect sandboxes, the added scrutiny associated with our *totally legitimate program* being classified as malicious is not worth the tradeoff. Furthermore, even if the techniques that are not directly considered to be malicious, they don't detect every sandbox we encountered. Although some candidates can detect most sandboxes like *Local Descriptor Table Location* or *mouse mouvements*, couldn't we use something simpler and less known ?
 
 Sandboxes are, basically, a VM that runs arbitrary programs. We can try to detect which technology it's using, be it VMWARE, VirtualBox, Cuckoo or QEMU, or try to see if the sandbox is moving the mouse cursor, or find sandbox artifacts. At the end of the day, we're still attempting to detect a sandbox by the definition of what a sandbox is, a VM that runs arbitrary programs. 
 
 
 ## Conclusion
 
-In reality, our objective is to get our payload on a real machine, configured by a real IT departement, with a real user contributing to shareholder value by trading their limited time for money. Sandboxes cannot capture this profound level of despair.
+In reality, our objective is to get our payload on a real machine, configured by a real IT department, with a real user contributing to shareholder value by trading their limited time for money. Sandboxes cannot capture this profound level of despair.
 
-We should detect what constitues a real machine, not try to detect what a fake one looks like. Environment keying is how we can do this.
+We should detect what constitutes a real machine, not try to detect what a fake one looks like. Environment keying is how we can do this.
 
 I wrote a quick nim program to check Active Directory membership a few different ways [4], office productivity logs [5], and uploaded it to the sandboxes. 
 
@@ -230,7 +230,7 @@ The results, albeit only 13, were immediately clear.
 {"domainjoined":[{"IsDomainJoined":false},{"ADO_ADSI":false},{"IsAzureJoined2":false}],"officeActivityLogs":0}
 ```
 
-None of these sandboxes were domain joined, or had any indication of Word, Excel or Powerpoint activity. They are not *real* corporate machines. Moreover, these sandboxes did not flag this code as *attempting to detect virtual environments, specific VMs or using anti-sandbox techniques*. (apart from the detections for just being nim code). 
+None of these sandboxes were domain joined, or had any indication of Word, Excel or Powerpoint activity. They are not *real* corporate machines. Moreover, these sandboxes did not flag this code as *attempting to detect virtual environments, specific VMs or using anti-sandbox techniques*. (Apart from the detections for just being nim code). 
 
 After uploading a bunch of files and getting free compute from these very nice sandbox vendors, it's apparent that while more complicated or interesting techniques might be required for malware that targets personal computers, using them for targeted engagements doesn't seem to add as much value. 
 
