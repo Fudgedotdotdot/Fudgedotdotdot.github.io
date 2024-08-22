@@ -2,7 +2,7 @@ echo '[INFO] Building static website...'
 cd ${GITHUB_WORKSPACE}
 git config --global --add safe.directory /github/workspace
 
-npm install honkit-plugin-theme-darkening --save-dev
+npm install honkit-plugin-theme-darkening@1.0.3 --save-dev
 
 honkit build
 
