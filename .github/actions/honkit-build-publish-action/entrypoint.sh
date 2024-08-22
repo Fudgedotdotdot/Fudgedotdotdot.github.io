@@ -3,6 +3,8 @@ cd ${GITHUB_WORKSPACE}
 git config --global --add safe.directory /github/workspace
 
 npm install honkit-plugin-theme-darkening@1.0.3 --save-dev
+# fix for theme
+sed 's/gitbook-plugin-honkit-plugin-theme-darkening/honkit-plugin-theme-darkening/' node_modules/honkit-plugin-theme-darkening/index.js
 
 npx honkit build
 
