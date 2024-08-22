@@ -4,7 +4,7 @@ git config --global --add safe.directory /github/workspace
 
 npm install honkit-plugin-theme-darkening@1.0.3 --save-dev
 
-honkit build
+npx honkit build
 
 echo '[INFO] Some magic to merge main into gh-pages...'
 git fetch origin gh-pages --depth 1
