@@ -152,6 +152,7 @@ The last technique is checking the uptime of the system. In this case, this is d
 
 
 [3] https://pentest.party/posts/2024/detecting-sandboxes-without-syscalls/
+
 [3.1] https://github.com/vxunderground/VX-API
 
 The other techniques either use WMI, which we already discarded due to its detection rate, or don't have enough detection capabilities to realistically be used in malware (we don't want to have to chain multiple / a lot of different techniques together).
@@ -159,14 +160,14 @@ The other techniques either use WMI, which we already discarded due to its detec
 
 ## Results analysis
 
-A lot of these techniques are well known by antivirus solutions, and even if they do detect sandboxes, the added scrutiny associated with your *totally legitimate program* being classified as malicious is not worth the tradeoff. Furthermore, even the techniques that are not directly considered to be malicious, don't detect every sandboxes we encountered. Although some candidates can detect most sandboxes like *Local Descriptor Table Location* or *mouse mouvements*, couldn't we use something simpler and less known ?
+A lot of these techniques are well known by antivirus solutions, and even if they do detect sandboxes, the added scrutiny associated with our *totally legitimate program* being classified as malicious is not worth the tradeoff. Furthermore, even the techniques that are not directly considered to be malicious, they don't detect every sandboxes we encountered. Although some candidates can detect most sandboxes like *Local Descriptor Table Location* or *mouse mouvements*, couldn't we use something simpler and less known ?
 
-Sandboxes are, basically, a VM that runs arbitrary programs. You can try to detect which technology it's using, be it VMWARE, VirtualBox, Cuckoo or QEMU, or try to see if the sandbox is moving the mouse cursor, or find sandbox artifacts. At the end of the day, you're still attempting to detect a sandbox by the definition of what a sandbox is, a VM that runs arbitrary programs. 
+Sandboxes are, basically, a VM that runs arbitrary programs. We can try to detect which technology it's using, be it VMWARE, VirtualBox, Cuckoo or QEMU, or try to see if the sandbox is moving the mouse cursor, or find sandbox artifacts. At the end of the day, we're still attempting to detect a sandbox by the definition of what a sandbox is, a VM that runs arbitrary programs. 
 
 
 ## Conclusion
 
-In reality, our objective is to get our payload on a real machine, configured by a real IT departement, with a real user contributing to shareholder value by trading their time for money. Sandboxes cannot capture this profound level of despair.
+In reality, our objective is to get our payload on a real machine, configured by a real IT departement, with a real user contributing to shareholder value by trading their limited time for money. Sandboxes cannot capture this profound level of despair.
 
 We should detect what constitues a real machine, not try to detect what a fake one looks like. Environment keying is how we can do this.
 
@@ -231,7 +232,7 @@ The results, albeit only 13, were immediately clear.
 
 None of these sandboxes were domain joined, or had any indication of Word, Excel or Powerpoint activity. They are not *real* corporate machines. Moreover, these sandboxes did not flag this code as *attempting to detect virtual environments, specific VMs or using anti-sandbox techniques*. (apart from the detections for just being nim code). 
 
-While more complicated or cool techniques might be required for malware that targets personal computers, using them for targeted engagements doesn't seem to add as much value. 
+After uploading a bunch of files and getting free compute from these very nice sandbox vendors, it's apparent that while more complicated or interesting techniques might be required for malware that targets personal computers, using them for targeted engagements doesn't seem to add as much value. 
 
 
 
