@@ -235,7 +235,14 @@ None of these sandboxes were domain joined, or had any indication of Word, Excel
 After uploading a bunch of files and getting free compute from these very nice sandbox vendors, it's apparent that while more complicated or interesting techniques might be required for malware that targets personal computers, using them for targeted engagements doesn't seem to add as much value. 
 
 
+----------------
 
+Thanks for reading,<br>
+Fudgedotdotdot
+<p>
+> Created: 02.09.2024 <br/>
+> Modified: {{ file.mtime  }}
+</p>
 
 
 
