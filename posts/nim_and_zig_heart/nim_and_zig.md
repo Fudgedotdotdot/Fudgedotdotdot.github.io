@@ -75,7 +75,7 @@ MessageBox(0, fmt"Hello {buffer} !", "Nim is Powerful", 0)
 
 I was therefore curious if using a non-default compiler reduced anti-virus detections so I could keep using Nim for all my *perfectly legitimate* projects.
 
-### Where does zig come in ?
+### Where does Zig come in ?
 
 
 
