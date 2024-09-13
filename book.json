@@ -1,6 +1,22 @@
 {
     "title": "Fudgedotdotdot - Blog",
     "gitbook": "3.1.1",
+<<<<<<< HEAD
     "plugins": ["honkit-plugin-theme-darkening@1.0.3", "honkit-plugin-pagefooter@0.1.1"]
+=======
+<<<<<<< HEAD
+    "plugins": ["honkit-plugin-theme-darkening@1.0.3", "honkit-plugin-pagefooter@0.1.1"]
+=======
+<<<<<<< HEAD
+    "plugins": ["honkit-plugin-theme-darkening@1.0.3", "honkit-plugin-pagefooter@0.1.1"]
+=======
+<<<<<<< HEAD
+    "plugins": ["honkit-plugin-theme-darkening@1.0.3", "honkit-plugin-pagefooter@0.1.1"]
+=======
+    "plugins": ["honkit-plugin-theme-darkening@1.0.3"]
+>>>>>>> 87230ba (Updated with:  799fdcd)
+>>>>>>> a89ae3f (Updated with:  f8e6be8)
+>>>>>>> 4ef2826 (Updated with:  516f2bd)
+>>>>>>> 4b589c7 (Updated with:  be93566)
 
 }

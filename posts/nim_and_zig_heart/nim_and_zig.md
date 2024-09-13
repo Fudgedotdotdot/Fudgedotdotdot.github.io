@@ -12,7 +12,15 @@ Plus, cool people have already written stuff in nim :
 
 ### Introduction
 
+<<<<<<< HEAD
 A lot of malware has been written in Nim[1] (see list above) and this has caused some frustration on the Nim forums and Nim's github page [2][3][4] about anti-virus detecting normal programs developed in this language.
+=======
+<<<<<<< HEAD
+A lot of malware has been written in Nim[1] (see list above) and this has caused some frustration on the Nim forums and Nim's github page [2][3][4] about anti-virus detecting normal programs developed in this language.
+=======
+A lot of malware has been written in Nim[1] (see list above) and this has cause some frustation on the Nim forums and Nim's github page [2][3][4] about anti-virus detecting normal programs developped in this language.
+>>>>>>> 4ef2826 (Updated with:  516f2bd)
+>>>>>>> 4b589c7 (Updated with:  be93566)
 
 
 [1] [Decoy Microsoft Word Documents Used to Deliver Nim-Based Malware](https://thehackernews.com/2023/12/decoy-microsoft-word-documents-used-to.html). <br>
@@ -73,6 +81,7 @@ MessageBox(0, fmt"Hello {buffer} !", "Nim is Powerful", 0)
 </table>
 
 
+<<<<<<< HEAD
 I was therefore curious if using a non-default compiler reduced anti-virus detections so I could keep using Nim for all my *perfectly legitimate* projects.
 
 ### Where does Zig come in ?
@@ -80,6 +89,23 @@ I was therefore curious if using a non-default compiler reduced anti-virus detec
 
 
 Since we can use whatever compiler we want from Nim, I thought we could use Zig's compiler [6].  
+=======
+<<<<<<< HEAD
+I was therefore curious if using a non-default compiler reduced anti-virus detections so I could keep using Nim for all my *perfectly legitimate* projects.
+=======
+I was therefore curious if using a non-default compiler would reduce anti-virus detections so I could keep using Nim for all my *perfectly legitimate* projects.
+>>>>>>> 4ef2826 (Updated with:  516f2bd)
+
+### Where does zig come in ?
+
+
+
+<<<<<<< HEAD
+Since we can use whatever compiler we want from Nim, I thought we could use Zig's compiler [6].  
+=======
+Since we can use whatever compiler we want from Nim, I though we could use Zig's compiler [6].  
+>>>>>>> 4ef2826 (Updated with:  516f2bd)
+>>>>>>> 4b589c7 (Updated with:  be93566)
 But wait, you might ask, isn't Zig a language of its own, how or why can it compile C code ?
 
 [6] [https://ziglang.org/learn/overview/](https://ziglang.org/learn/overview/)
@@ -91,7 +117,15 @@ Well, *Zig (Zig CC)* is described by its lead developer Andrew Kelley as *a Powe
 [7.1] [https://medium.com/@edlyuu/zig-c-c-compiler-wtf-is-zig-c-790d9ad8d85b](https://medium.com/@edlyuu/zig-c-c-compiler-wtf-is-zig-c-790d9ad8d85b)
 
 
+<<<<<<< HEAD
 This means we can use Zig to compile our Nim program, we just need a way to tell Nim to use Zig. Thankfully, someone else already did the leg work [8], and published a nimble package to help with this. 
+=======
+<<<<<<< HEAD
+This means we can use Zig to compile our Nim program, we just need a way to tell Nim to use Zig. Thankfully, someone else already did the leg work [8], and published a nimble package to help with this. 
+=======
+This means we can use Zig to compile our Nim program, we just need a way tell Nim to use Zig. Thankfully, someone else already did the leg work [8], and published a nimble package to help with this. 
+>>>>>>> 4ef2826 (Updated with:  516f2bd)
+>>>>>>> 4b589c7 (Updated with:  be93566)
 
 [8] [https://github.com/enthus1ast/zigcc](https://github.com/enthus1ast/zigcc)
 
@@ -117,7 +151,15 @@ The detection rate speak for themselves.
     </tr>
 </table>
 
+<<<<<<< HEAD
 Disclaimer: I haven't (yet) tried this on more significant Nim projects, but I see no reason why it wouldn't work.
+=======
+<<<<<<< HEAD
+Disclaimer: I haven't (yet) tried this on more significant Nim projects, but I see no reason why it wouldn't work.
+=======
+Disclamer: I haven't (yet) tried this on more significant Nim projects, but I see no reason that it wouldn't work.
+>>>>>>> 4ef2826 (Updated with:  516f2bd)
+>>>>>>> 4b589c7 (Updated with:  be93566)
 
 ### Dockerfile
 

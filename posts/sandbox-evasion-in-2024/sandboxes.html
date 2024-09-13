@@ -1,0 +1,496 @@
+
+<!DOCTYPE HTML>
+<html lang="" >
+    <head>
+        <meta charset="UTF-8">
+        <title>The state of sandbox evasion techniques in 2024 · Fudgedotdotdot - Blog</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="description" content="">
+        <meta name="generator" content="HonKit 5.1.4">
+        
+        
+        
+    
+    <link rel="stylesheet" href="../../gitbook/style.css">
+
+    
+            
+                
+                <link rel="stylesheet" href="../../gitbook/honkit-plugin-theme-darkening/darkening.css">
+                
+            
+                
+                <link rel="stylesheet" href="../../gitbook/honkit-plugin-pagefooter/footer.css">
+                
+            
+                
+                <link rel="stylesheet" href="../../gitbook/@honkit/honkit-plugin-highlight/website.css">
+                
+            
+                
+                <link rel="stylesheet" href="../../gitbook/gitbook-plugin-search/search.css">
+                
+            
+                
+                <link rel="stylesheet" href="../../gitbook/gitbook-plugin-fontsettings/website.css">
+                
+            
+        
+
+    
+
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+
+        
+    
+    
+    <meta name="HandheldFriendly" content="true"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <link rel="apple-touch-icon-precomposed" sizes="152x152" href="../../gitbook/images/apple-touch-icon-precomposed-152.png">
+    <link rel="shortcut icon" href="../../gitbook/images/favicon.ico" type="image/x-icon">
+
+    
+    <link rel="next" href="../nim_and_zig_heart/nim_and_zig.html" />
+    
+    
+
+    </head>
+    <body>
+        
+<div class="book honkit-cloak">
+    <div class="book-summary">
+        
+            
+<div id="book-search-input" role="search">
+    <input type="text" placeholder="Type to search" />
+</div>
+
+            
+                <nav role="navigation">
+                
+
+
+<ul class="summary">
+    
+    
+
+    
+
+    
+        
+        <li class="header">About me</li>
+        
+        
+    
+        <li class="chapter " data-level="1.1" data-path="../../">
+            
+                <a href="../../">
+            
+                    
+                    Introduction
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2" >
+            
+                <span>
+            
+                    
+                    suspiciously empty
+            
+                </span>
+            
+
+            
+        </li>
+    
+
+    
+        
+        <li class="header">Research</li>
+        
+        
+    
+        <li class="chapter active" data-level="2.1" data-path="sandboxes.html">
+            
+                <a href="sandboxes.html">
+            
+                    
+                    The state of sandbox evasion techniques in 2024
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="2.2" data-path="../nim_and_zig_heart/nim_and_zig.html">
+            
+                <a href="../nim_and_zig_heart/nim_and_zig.html">
+            
+                    
+                    Nim + Zig = ❤️
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+    
+
+    <li class="divider"></li>
+
+    <li>
+        <a href="https://github.com/honkit/honkit" target="blank" class="gitbook-link">
+            Published with HonKit
+        </a>
+    </li>
+</ul>
+
+
+                </nav>
+            
+        
+    </div>
+
+    <div class="book-body">
+        
+            <div class="body-inner">
+                
+                    
+
+<div class="book-header" role="navigation">
+    
+
+    <!-- Title -->
+    <h1>
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+        <a href="../.." >The state of sandbox evasion techniques in 2024</a>
+    </h1>
+</div>
+
+
+
+
+                    <div class="page-wrapper" tabindex="-1" role="main">
+                        <div class="page-inner">
+                            
+<div id="book-search-results">
+    <div class="search-noresults">
+    
+                                <section class="normal markdown-section">
+                                
+                                <h1 id="the-state-of-sandbox-evasion-techniques-in-2024">The state of sandbox evasion techniques in 2024</h1>
+<p>This post is  about sandbox evasion techniques and their usefulness in more targeted engagements. </p>
+<p>There&apos;s a lot of sandbox evasion techniques, some are simple: query WMI, some are cool: parsing SMBIOS tables, most try to detect sandbox artifacts.  I wanted to know if these techniques are still effective for detecting sandboxes, or if the sandboxes have since been updated to counter them.</p>
+<h2 id="initial-enumeration">Initial enumeration</h2>
+<p>I selected these four sandboxes for my tests :</p>
+<ul>
+<li><a href="https://www.virustotal.com/gui/" target="_blank">VirusTotal</a></li>
+<li><a href="https://www.hybrid-analysis.com/" target="_blank">Hybrid-Analysis</a></li>
+<li><a href="https://tria.ge/" target="_blank">RecordedFuture Triage</a></li>
+<li><a href="https://www.filescan.io/scan" target="_blank">OWASP MetaDefender Sandbox</a></li>
+</ul>
+<p>There were quite a lot more public sandbox services [1] around 2016. But these were the ones I found still active. I also used random URL scanning services after reading this <a href="https://x.com/0gtweet/status/1797484704196665626" target="_blank">tweet</a> from Grzegorz Tworek.</p>
+<p>[1] <em>On Fingerprinting of Public Malware Analysis
+Services</em></p>
+<p>[1] <a href="https://www.christian-rossow.de/publications/sandprint-raid2016.pdf" target="_blank">https://www.christian-rossow.de/publications/sandprint-raid2016.pdf</a></p>
+<p>[1] <em>Your Sandbox is Blinded:
+Impact of Decoy Injection to Public Malware Analysis
+Systems</em></p>
+<p>To perform a quick and dirty enumeration of these sandboxes, I wrote a quick python script to get information about the running processes, installed software and BIOS information (through the registry). All information was going to be sent through HTTP POST requests, as they seemed to be allowed through the sandboxes firewalls. The server that received the results was a simple Flask webserver. </p>
+<p>The BIOS information did not hold any value in determining if the machine was a sandbox.</p>
+<p>List of software installed (from the registry) :</p>
+<table>
+    <tr>
+        <td style="border: 0;"><img src="imgs/results-hkcu.png"></td>
+        <td style="border: 0;"><img src="imgs/results-hklm.png"></td>
+    </tr>
+</table>
+
+<p>When listing the directories in the <em>Program Files</em> and <em>Program Files (x86)</em>, about 10 sandboxes had weird directories :</p>
+<p><img src="imgs/results-programs.png" alt="results-installed"></p>
+<p>When listing processes, these are the users that are running software on the machine (including our process). They account for about 33/120ish of sandboxes where the payload was executed.</p>
+<ul>
+<li>WIN-5E07COS9ALR\Abby</li>
+<li>WASP\Janet Van Dyne</li>
+<li>DESKTOP-B0T93D6\george</li>
+<li>JOHN-PC\John</li>
+<li>BUXF-O02J2Q\admin</li>
+</ul>
+<p>There were also a lot of sandboxes that were using this sort of pattern for their users:</p>
+<ul>
+<li>DESKTOP-BJNL7RX\vbxKIs2</li>
+<li>DESKTOP-QSVLYYY\dqUyPd5N</li>
+<li>DESKTOP-BYNIGKA\YnYVSXW5Vh5</li>
+<li>DESKTOP-5HLCS0T\Lv3mvD7Wv6L</li>
+<li>DESKTOP-0SWEU7Q\AUlDa</li>
+</ul>
+<p>The length of the username varied in length, but the machine is always 7 characters long.</p>
+<p>Finally, here are the countries that called-back sorted by sandbox. The <em>GENERIC</em> one is from <em>OWASP MetaDefender Sandbox</em> and other random URL scanning services I could find. </p>
+<table>
+    <tr>
+        <td style="border: 0;"><img src="imgs/map-sandboxes-generic.png"></td>
+        <td style="border: 0;"><img src="imgs/map-sandboxes-virustotal.png"></td>
+    </tr>
+    <tr>
+        <td style="border: 0;"><img src="imgs/map-sandboxes-hybridanalysis.png"></td>
+        <td style="border: 0;"><img src="imgs/map-sandboxes-recordedfuturtriage.png"></td>
+    </tr>
+</table>
+
+
+
+
+
+<p>Let&apos;s see how evasion techniques fair against these sandboxes.</p>
+<h2 id="evasion-techniques">Evasion techniques</h2>
+<p>To help in testing sandbox evasion techniques, I relied on the two following projects :</p>
+<ul>
+<li><a href="https://github.com/LordNoteworthy/al-khaser" target="_blank">Al-Khaser</a></li>
+<li><a href="https://github.com/a0rtega/pafish" target="_blank">Pafish</a></li>
+</ul>
+<p>Both tools were modified to send an HTTP request containing the text that is normally printed to the console. The HTTP server was the same Flask application from the exfiltration section but with one caveat, I could not figure out how to use a global variable in C/C++ to use as unique ID (stackoverflow answers were simply :  <em>read in a condescending tone: &quot;you shouldn&apos;t use global variables, here&apos;s the better way&quot;</em>), so I used the source IP as a unique identifier and appending to the log file if the IP was already seen. </p>
+<p>A week after uploading the files to the sandboxes, the results were the following :</p>
+<ul>
+<li>32 unique IPs for <em>Al-Khaser</em> </li>
+<li>43 unique IPs for <em>Pafish</em></li>
+</ul>
+<h3 id="al-khaser-results">Al-Khaser results</h3>
+<p><em>Al-Khaser</em> detects multiple sandboxes using the <em>Local Descriptor Table Location</em> technique, which, quoted directly from the source: </p>
+<blockquote>
+<p><em>This trick  involves looking at pointers to critical operating system tables
+that are typically relocated on a virtual machine. One such table is the
+Interrupt Descriptor Table (IDT), which tells the system where various operating
+system interrupt handlers are located in memory. On real machines, the IDT is
+located lower in memory than it is on guest (i.e., virtual) machines.</em></p>
+<p><em>PS: Does not seem to work on newer version of VMWare Workstation (Tested on v12)</em></p>
+</blockquote>
+<p>I&apos;m not sure if that means that the results are a false positive, but since it should not work on newer versions of VMWare Workstation, let’s ignore it. </p>
+<p>Both <em>Checking for Hyper-V global objects</em> and <em>Checking_SMBIOS_tables</em> techniques seem to be an effective method to detect sandboxes. Another advantage is they don&apos;t get flagged as anti-vm techniques by the sanboxes. </p>
+<p><img src="imgs/results-al-khaser.png" alt="al-khaser"></p>
+<p><em>The data was limited to techniques that detected at least 5 sandboxes</em></p>
+<p>The <em>NtYieldExecution</em> is a antidebugging technique that doesn&apos;t seem very reliable as it considers my machine to be a sandbox. The unreliability is also recognized in the source code : </p>
+<blockquote>
+<p><em>However, this is a hopelessly unreliable method for detecting a debugger because it will also detect the presence of a thread that is running with high priority</em></p>
+</blockquote>
+<p>Most of the other successful detection techniques are based on WMI queries. However, interfacing with WMI is well known, and sandboxes consider these queries as malicious, making them pointless to use for sandbox evasion. </p>
+<p><img src="imgs/results-wmi.png" alt="results-wmi"></p>
+<h3 id="pafish-results">Pafish results</h3>
+<p>I ran two versions of <em>Pafish</em>, the first sent a generic log message, the second a more detailed one. I did this as the <em>virtualbox</em> detection was trigged multiple times on seven sandboxes that executed the payload, but didn&apos;t give me the exact detection technique.</p>
+<p><img src="imgs/resultsv1-pafish.png" alt="pafish1"></p>
+<p>This second iteration did not execute on as many sandboxes as the previous one. That&apos;s why there&apos;s less <em>virtualbox</em> detection techniques in the graph.</p>
+<p><img src="imgs/resultsv2-pafish.png" alt="pafish2"></p>
+<p>The <em>rdtsc</em> technique [2] is documented and well known by malware authors and sandbox authors alike. The technique is useful in detecting sandboxes, but at the same time creates a known malicious IOC. </p>
+<p>[2] <a href="https://anti-debug.checkpoint.com/techniques/timing.html" target="_blank">checkpoint research</a></p>
+<p>The next techniques in detection ability are linked to user interaction, either with mouse movement and clicks on message boxes. While these techniques are great and abuse the fact that sandbox users are not real users, mouse clicks should be avoided as they place a hook on mouse events which gets detected as <em>Sets a global windows hook to intercept mouse events</em>. </p>
+<p>The last technique is checking the uptime of the system. In this case, this is done with the <em>GetTickCount()</em> API call but can also be done by manually parsing the <em>KUSER_SHARED_DATA</em>, as shown in this blog [3] and documented by the VX-API project [3.1]</p>
+<p>[3] <a href="https://pentest.party/posts/2024/detecting-sandboxes-without-syscalls/" target="_blank">https://pentest.party/posts/2024/detecting-sandboxes-without-syscalls/</a></p>
+<p>[3.1] <a href="https://github.com/vxunderground/VX-API" target="_blank">https://github.com/vxunderground/VX-API</a></p>
+<p>The other techniques either use WMI, which we already discarded due to its detection rate, or don&apos;t have enough detection capabilities to realistically be used in malware (we don&apos;t want to have to chain multiple / a lot of different techniques together).</p>
+<h2 id="results-analysis">Results analysis</h2>
+<p>A lot of these techniques are well known by antivirus solutions, and even if they do detect sandboxes, the added scrutiny associated with our <em>totally legitimate program</em> being classified as malicious is not worth the tradeoff. Furthermore, even if the techniques that are not directly considered to be malicious, they don&apos;t detect every sandbox we encountered. Although some candidates can detect most sandboxes like <em>Local Descriptor Table Location</em> or <em>mouse mouvements</em>, couldn&apos;t we use something simpler and less known ?</p>
+<p>Sandboxes are, basically, a VM that runs arbitrary programs. We can try to detect which technology it&apos;s using, be it VMWARE, VirtualBox, Cuckoo or QEMU, or try to see if the sandbox is moving the mouse cursor, or find sandbox artifacts. At the end of the day, we&apos;re still attempting to detect a sandbox by the definition of what a sandbox is, a VM that runs arbitrary programs. </p>
+<h2 id="conclusion">Conclusion</h2>
+<p>In reality, our objective is to get our payload on a real machine, configured by a real IT department, with a real user contributing to shareholder value by trading their limited time for money. Sandboxes cannot capture this profound level of despair.</p>
+<p>We should detect what constitutes a real machine, not try to detect what a fake one looks like. Environment keying is how we can do this.</p>
+<p>I wrote a quick nim program to check Active Directory membership a few different ways [4], office productivity logs [5], and uploaded it to the sandboxes. </p>
+<p>[4] <a href="https://github.com/byt3bl33d3r/OffensiveNim/blob/master/src/sandbox_domain_check.nim" target="_blank">https://github.com/byt3bl33d3r/OffensiveNim/blob/master/src/sandbox_domain_check.nim</a></p>
+<pre><code class="lang-nim"><span class="hljs-keyword">proc</span> <span class="hljs-type">IsAzureJoined2</span>(): <span class="hljs-type">bool</span> = 
+    <span class="hljs-keyword">proc</span> <span class="hljs-type">DsrIsDeviceJoined</span>(
+        isDomainJoined: <span class="hljs-keyword">ptr</span> <span class="hljs-type">BOOL</span>,
+        isAADJoined: <span class="hljs-keyword">ptr</span> <span class="hljs-type">BOOL</span>
+    ): <span class="hljs-type">HRESULT</span> <span class="hljs-meta">{.stdcall, dynlib: &quot;dsreg&quot;, importc.}</span>
+    <span class="hljs-keyword">var</span> domainJoined: <span class="hljs-type">BOOL</span> = <span class="hljs-number">0</span>
+    <span class="hljs-keyword">var</span> aadJoined: <span class="hljs-type">BOOL</span> = <span class="hljs-number">0</span> <span class="hljs-comment"># doesn&apos;t do anything?, the real return is in domainJoined</span>
+    <span class="hljs-keyword">let</span> <span class="hljs-built_in">result</span> = <span class="hljs-type">DsrIsDeviceJoined</span>(<span class="hljs-keyword">addr</span> domainJoined, <span class="hljs-keyword">addr</span> aadJoined)
+    <span class="hljs-keyword">if</span> <span class="hljs-built_in">result</span> == <span class="hljs-type">S_OK</span>:
+        <span class="hljs-keyword">return</span> domainJoined
+</code></pre>
+<pre><code class="lang-nim"><span class="hljs-comment"># From https://github.com/byt3bl33d3r/OffensiveNim/blob/master/src/ldap_query_bin.nim</span>
+<span class="hljs-keyword">proc</span> <span class="hljs-type">ADO_ADSI</span>(): <span class="hljs-type">bool</span> = 
+    <span class="hljs-keyword">var</span> conn = <span class="hljs-type">CreateObject</span>(<span class="hljs-string">&quot;ADODB.Connection&quot;</span>)
+    conn.<span class="hljs-type">Provider</span> = <span class="hljs-string">&quot;ADsDSOObject&quot;</span>
+    conn.<span class="hljs-type">Open</span>(<span class="hljs-string">&quot;Active Directory Provider&quot;</span>)
+    <span class="hljs-keyword">var</span> sysinfo = <span class="hljs-type">CreateObject</span>(<span class="hljs-string">&quot;ADSystemInfo&quot;</span>)
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">let</span> dn = sysinfo.<span class="hljs-type">DomainDNSName</span>
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>
+    <span class="hljs-keyword">except</span>:
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>
+</code></pre>
+<p>[5]</p>
+<pre><code class="lang-nim"><span class="hljs-keyword">proc</span> file_outlooklogs(): <span class="hljs-type">int</span> = 
+    <span class="hljs-keyword">let</span> path = getHomeDir() / <span class="hljs-string">&quot;AppData&quot;</span> / <span class="hljs-string">&quot;Local&quot;</span> / <span class="hljs-string">&quot;Temp&quot;</span> / <span class="hljs-string">&quot;Outlook Logging&quot;</span>
+    <span class="hljs-keyword">let</span> filesInPath = toSeq(walkDir(path)) 
+    <span class="hljs-keyword">return</span> filesInPath.len
+</code></pre>
+<p>The results, albeit only 13, were immediately clear.</p>
+<pre><code class="lang-json">{<span class="hljs-string">&quot;domainjoined&quot;</span>:[{<span class="hljs-string">&quot;IsDomainJoined&quot;</span>:<span class="hljs-literal">false</span>},{<span class="hljs-string">&quot;ADO_ADSI&quot;</span>:<span class="hljs-literal">false</span>},{<span class="hljs-string">&quot;IsAzureJoined2&quot;</span>:<span class="hljs-literal">false</span>}],<span class="hljs-string">&quot;officeActivityLogs&quot;</span>:<span class="hljs-number">0</span>}
+{<span class="hljs-string">&quot;domainjoined&quot;</span>:[{<span class="hljs-string">&quot;IsDomainJoined&quot;</span>:<span class="hljs-literal">false</span>},{<span class="hljs-string">&quot;ADO_ADSI&quot;</span>:<span class="hljs-literal">false</span>},{<span class="hljs-string">&quot;IsAzureJoined2&quot;</span>:<span class="hljs-literal">false</span>}],<span class="hljs-string">&quot;officeActivityLogs&quot;</span>:<span class="hljs-number">0</span>}
+{<span class="hljs-string">&quot;domainjoined&quot;</span>:[{<span class="hljs-string">&quot;IsDomainJoined&quot;</span>:<span class="hljs-literal">false</span>},{<span class="hljs-string">&quot;ADO_ADSI&quot;</span>:<span class="hljs-literal">false</span>},{<span class="hljs-string">&quot;IsAzureJoined2&quot;</span>:<span class="hljs-literal">true</span>}],<span class="hljs-string">&quot;officeActivityLogs&quot;</span>:<span class="hljs-number">271</span>} &lt;-- <span class="hljs-title class_">That</span><span class="hljs-string">&apos;s my corporate laptop
+{&quot;domainjoined&quot;:[{&quot;IsDomainJoined&quot;:false},{&quot;ADO_ADSI&quot;:false},{&quot;IsAzureJoined2&quot;:false}],&quot;officeActivityLogs&quot;:0,}
+{&quot;domainjoined&quot;:[{&quot;IsDomainJoined&quot;:false},{&quot;ADO_ADSI&quot;:false},{&quot;IsAzureJoined2&quot;:false}],&quot;officeActivityLogs&quot;:0,}
+{&quot;domainjoined&quot;:[{&quot;IsDomainJoined&quot;:false},{&quot;ADO_ADSI&quot;:false},{&quot;IsAzureJoined2&quot;:false}],&quot;officeActivityLogs&quot;:}
+{&quot;domainjoined&quot;:[{&quot;IsDomainJoined&quot;:false},{&quot;ADO_ADSI&quot;:false},{&quot;IsAzureJoined2&quot;:false}],&quot;officeActivityLogs&quot;:}
+{&quot;domainjoined&quot;:[{&quot;IsDomainJoined&quot;:false},{&quot;ADO_ADSI&quot;:false},{&quot;IsAzureJoined2&quot;:false}],&quot;officeActivityLogs&quot;:1}
+{&quot;domainjoined&quot;:[{&quot;IsDomainJoined&quot;:false},{&quot;ADO_ADSI&quot;:false},{&quot;IsAzureJoined2&quot;:false}],&quot;officeActivityLogs&quot;:0}
+{&quot;domainjoined&quot;:[{&quot;IsDomainJoined&quot;:false},{&quot;ADO_ADSI&quot;:false},{&quot;IsAzureJoined2&quot;:false}],&quot;officeActivityLogs&quot;:}
+{&quot;domainjoined&quot;:[{&quot;IsDomainJoined&quot;:false},{&quot;ADO_ADSI&quot;:false},{&quot;IsAzureJoined2&quot;:false}],&quot;officeActivityLogs&quot;:}
+{&quot;domainjoined&quot;:[{&quot;IsDomainJoined&quot;:false},{&quot;ADO_ADSI&quot;:false},{&quot;IsAzureJoined2&quot;:false}],&quot;officeActivityLogs&quot;:}
+{&quot;domainjoined&quot;:[{&quot;IsDomainJoined&quot;:false},{&quot;ADO_ADSI&quot;:false},{&quot;IsAzureJoined2&quot;:false}],&quot;officeActivityLogs&quot;:}
+{&quot;domainjoined&quot;:[{&quot;IsDomainJoined&quot;:false},{&quot;ADO_ADSI&quot;:false},{&quot;IsAzureJoined2&quot;:false}],&quot;officeActivityLogs&quot;:2}
+{&quot;domainjoined&quot;:[{&quot;IsDomainJoined&quot;:false},{&quot;ADO_ADSI&quot;:false},{&quot;IsAzureJoined2&quot;:false}],&quot;officeActivityLogs&quot;:0}
+</span></code></pre>
+<p>None of these sandboxes were domain joined, or had any indication of Word, Excel or Powerpoint activity. They are not <em>real</em> corporate machines. Moreover, these sandboxes did not flag this code as <em>attempting to detect virtual environments, specific VMs or using anti-sandbox techniques</em>. (Apart from the detections for just being nim code). </p>
+<p>After uploading a bunch of files and getting free compute from these very nice sandbox vendors, it&apos;s apparent that while more complicated or interesting techniques might be required for malware that targets personal computers, using them for targeted engagements doesn&apos;t seem to add as much value. </p>
+<hr>
+<p>Thanks for reading,<br>
+Fudgedotdotdot</p>
+<p>
+&gt; Created: 02.09.2024 <br>
+&gt; Modified: Fri Sep 13 2024 11:25:46 GMT+0000 (Coordinated Universal Time)
+</p>
+
+
+
+
+                                
+                                </section>
+                            
+    </div>
+    <div class="search-results">
+        <div class="has-results">
+            
+            <h1 class="search-results-title"><span class='search-results-count'></span> results matching "<span class='search-query'></span>"</h1>
+            <ul class="search-results-list"></ul>
+            
+        </div>
+        <div class="no-results">
+            
+            <h1 class="search-results-title">No results matching "<span class='search-query'></span>"</h1>
+            
+        </div>
+    </div>
+</div>
+
+                        </div>
+                    </div>
+                
+            </div>
+
+            
+                
+                
+                <a href="../nim_and_zig_heart/nim_and_zig.html" class="navigation navigation-next navigation-unique" aria-label="Next page: Nim + Zig = ❤️">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+                
+            
+        
+    </div>
+
+    <script>
+        var gitbook = gitbook || [];
+        gitbook.push(function() {
+            gitbook.page.hasChanged({"page":{"title":"The state of sandbox evasion techniques in 2024","level":"2.1","depth":1,"next":{"title":"Nim + Zig = ❤️","level":"2.2","depth":1,"path":"posts/nim_and_zig_heart/nim_and_zig.md","ref":"posts/nim_and_zig_heart/nim_and_zig.md","articles":[]},"previous":{"title":"suspiciously empty","level":"1.2","depth":1,"ref":"","articles":[]},"dir":"ltr"},"config":{"plugins":["honkit-plugin-theme-darkening@1.0.3","honkit-plugin-pagefooter@0.1.1"],"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"pluginsConfig":{"honkit-plugin-theme-darkening":{},"honkit-plugin-pagefooter":{},"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56},"embedFonts":false},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"Fudgedotdotdot - Blog","gitbook":"3.1.1"},"file":{"path":"posts/sandbox-evasion-in-2024/sandboxes.md","mtime":"2024-09-13T11:25:46.480Z","type":"markdown"},"gitbook":{"version":"5.1.4","time":"2024-09-13T11:26:15.166Z"},"basePath":"../..","book":{"language":""}});
+        });
+    </script>
+</div>
+
+        
+    <noscript>
+        <style>
+            .honkit-cloak {
+                display: block !important;
+            }
+        </style>
+    </noscript>
+    <script>
+        // Restore sidebar state as critical path for prevent layout shift
+        function __init__getSidebarState(defaultValue){
+            var baseKey = "";
+            var key = baseKey + ":sidebar";
+            try {
+                var value = localStorage[key];
+                if (value === undefined) {
+                    return defaultValue;
+                }
+                var parsed = JSON.parse(value);
+                return parsed == null ? defaultValue : parsed;
+            } catch (e) {
+                return defaultValue;
+            }
+        }
+        function __init__restoreLastSidebarState() {
+            var isMobile = window.matchMedia("(max-width: 600px)").matches;
+            if (isMobile) {
+                // Init last state if not mobile
+                return;
+            }
+            var sidebarState = __init__getSidebarState(true);
+            var book = document.querySelector(".book");
+            // Show sidebar if it enabled
+            if (sidebarState && book) {
+                book.classList.add("without-animation", "with-summary");
+            }
+        }
+
+        try {
+            __init__restoreLastSidebarState();
+        } finally {
+            var book = document.querySelector(".book");
+            book.classList.remove("honkit-cloak");
+        }
+    </script>
+    <script src="../../gitbook/gitbook.js"></script>
+    <script src="../../gitbook/theme.js"></script>
+    
+        
+        <script src="../../gitbook/gitbook-plugin-search/search-engine.js"></script>
+        
+    
+        
+        <script src="../../gitbook/gitbook-plugin-search/search.js"></script>
+        
+    
+        
+        <script src="../../gitbook/gitbook-plugin-lunr/lunr.min.js"></script>
+        
+    
+        
+        <script src="../../gitbook/gitbook-plugin-lunr/search-lunr.js"></script>
+        
+    
+        
+        <script src="../../gitbook/gitbook-plugin-fontsettings/fontsettings.js"></script>
+        
+    
+
+        <script src="https://cdn.jsdelivr.net/npm/less@3.13" ></script>
+    </body>
+</html>

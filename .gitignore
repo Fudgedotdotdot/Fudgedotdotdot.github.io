@@ -1,3 +1,46 @@
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> f02eb51 (Update docs)
+>>>>>>> e02de8f (Updated with:  959d196))
+>>>>>>> 5c52129 (Updated with:  273137f)
+>>>>>>> 40673e7 (Updated with:  153343f)
+>>>>>>> 2f34b91 (Updated with:  d763552)
+>>>>>>> ab79ba2 (Updated with:  1008333)
+>>>>>>> 31829a1 (Updated with:  d9fc0af)
+>>>>>>> 7ba5c81 (Updated with:  db869ce)
+>>>>>>> 996154c (Updated with:  546ac1e)
+>>>>>>> 5e780d3 (Updated with:  40e6247)
+>>>>>>> 87230ba (Updated with:  799fdcd)
+>>>>>>> a89ae3f (Updated with:  f8e6be8)
+>>>>>>> 4ef2826 (Updated with:  516f2bd)
+>>>>>>> 4b589c7 (Updated with:  be93566)
 # Node rules:
 ## Grunt intermediate storage (http://gruntjs.com/creating-plugins#storing-task-files)
 .grunt
@@ -6,7 +49,59 @@
 ## Commenting this out is preferred by some people, see
 ## https://docs.npmjs.com/misc/faq#should-i-check-my-node_modules-folder-into-git
 node_modules
+<<<<<<< HEAD
 .vscode
+=======
+<<<<<<< HEAD
+.vscode
+=======
+<<<<<<< HEAD
+.vscode
+=======
+<<<<<<< HEAD
+.vscode
+=======
+<<<<<<< HEAD
+.vscode
+=======
+<<<<<<< HEAD
+.vscode
+=======
+<<<<<<< HEAD
+.vscode
+=======
+<<<<<<< HEAD
+.vscode
+=======
+<<<<<<< HEAD
+.vscode
+=======
+<<<<<<< HEAD
+.vscode
+=======
+<<<<<<< HEAD
+.vscode
+=======
+<<<<<<< HEAD
+.vscode
+=======
+<<<<<<< HEAD
+.vscode
+=======
+
+>>>>>>> e02de8f (Updated with:  959d196))
+>>>>>>> 5c52129 (Updated with:  273137f)
+>>>>>>> 40673e7 (Updated with:  153343f)
+>>>>>>> 2f34b91 (Updated with:  d763552)
+>>>>>>> ab79ba2 (Updated with:  1008333)
+>>>>>>> 31829a1 (Updated with:  d9fc0af)
+>>>>>>> 7ba5c81 (Updated with:  db869ce)
+>>>>>>> 996154c (Updated with:  546ac1e)
+>>>>>>> 5e780d3 (Updated with:  40e6247)
+>>>>>>> 87230ba (Updated with:  799fdcd)
+>>>>>>> a89ae3f (Updated with:  f8e6be8)
+>>>>>>> 4ef2826 (Updated with:  516f2bd)
+>>>>>>> 4b589c7 (Updated with:  be93566)
 # Book build output
 _book
 
@@ -14,3 +109,63 @@ _book
 *.epub
 *.mobi
 *.pdf
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+# Node rules:
+## Grunt intermediate storage (http://gruntjs.com/creating-plugins#storing-task-files)
+.grunt
+
+## Dependency directory
+## Commenting this out is preferred by some people, see
+## https://docs.npmjs.com/misc/faq#should-i-check-my-node_modules-folder-into-git
+node_modules
+
+# Book build output
+_book
+
+# eBook build output
+*.epub
+*.mobi
+*.pdf
+>>>>>>> 15b78e9 (removed old files)
+>>>>>>> f02eb51 (Update docs)
+>>>>>>> e02de8f (Updated with:  959d196))
+>>>>>>> 5c52129 (Updated with:  273137f)
+>>>>>>> 40673e7 (Updated with:  153343f)
+>>>>>>> 2f34b91 (Updated with:  d763552)
+>>>>>>> ab79ba2 (Updated with:  1008333)
+>>>>>>> 31829a1 (Updated with:  d9fc0af)
+>>>>>>> 7ba5c81 (Updated with:  db869ce)
+>>>>>>> 996154c (Updated with:  546ac1e)
+>>>>>>> 5e780d3 (Updated with:  40e6247)
+>>>>>>> 87230ba (Updated with:  799fdcd)
+>>>>>>> a89ae3f (Updated with:  f8e6be8)
+>>>>>>> 4ef2826 (Updated with:  516f2bd)
+>>>>>>> 4b589c7 (Updated with:  be93566)
