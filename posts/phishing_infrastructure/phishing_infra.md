@@ -1,4 +1,4 @@
-# Building phishing infrastructure with Terraform and Ansible
+# Building Phishing Infrastructure With Terraform and Ansible
 
 This is an article about building phishing or really any kind of pentest/red team infrastructure using Terraform and Ansible. We'll go over the architecture, Terraform setup and Ansible tasks that make it possible to build reliable and secure infrastructure. 
 
@@ -10,9 +10,7 @@ Here's a diagram of the architecture.
 <img src="./imgs/design.drawio.svg">
 </p>
 
-We are using two separate servers for *redirector* and *evilginx2*, following the usual design for C2 infrastructure. This design prevents *Evilginx2* from being exposed directly on the Internet, and gives us the option to remplace the redirector in case the domain gets flagged without having to redeploy, reconfigure and retest the entire infrastructure.  
-
-
+We are using two separate servers for *redirector* and *evilginx2*, following the usual design for C2 infrastructure. This design prevents *Evilginx2* from being exposed directly on the Internet, and gives us the option to replace the redirector in case the domain gets flagged without having to redeploy, reconfigure and retest the entire infrastructure.  
 
 
 We'll see details on each segment later. 
@@ -128,7 +126,7 @@ Here, we target evilginx hosts with the *common* and *evilginx* roles. In the tr
 Every role directory contains: 
 - **files** - for static or template files
 - **tasks** - for ansible tasks
-- **vars** - for role specific variables
+- **vars** - for role-specific variables
 
 In the task directory, the *main.yml* file will be executed by Ansible automatically. We can split up tasks and use `include_tasks` in *main.yml* to import them. 
 
@@ -163,7 +161,7 @@ evilginx:
 
 #### Custom CA
 
-The diagram shows that we are using a custom CA for Evilginx. We do this to generate our own certs instead of letting Evilginx2 request them from LetsEncrypt, or use the `-developer` argument that will generate self-signed certs. While this argument seems to the solution to generate certs, the `ca.crt` and `ca.key` are only created when launching Evilginx, which is a problem when deploying our infrastructure as we won't have access to these keys to configure our redirector to trust Evilginx2's developer certs. 
+The diagram shows that we are using a custom CA for Evilginx. We do this to generate our own certs instead of letting Evilginx2 request them from LetsEncrypt, or use the `-developer` argument that will generate self-signed certs. While this argument seems to be the solution to generate certs, they are`ca.crt` `ca.key`only created when launching Evilginx, which is a problem when deploying our infrastructure as we won't have access to these keys to configure our redirector to trust Evilginx2's developer certs. 
 
 Instead, we can create our own CA, generate certs for the domain and subdomains (as a wildcard) and install them as *@mrgretzky*'s tweet explains [https://x.com/mrgretzky/status/1763584080245887320?t=QXA0bqeBrNP4xn8RoA1jfw&s=31](https://x.com/mrgretzky/status/1763584080245887320?t=QXA0bqeBrNP4xn8RoA1jfw&s=31): 
 ```
@@ -247,7 +245,7 @@ I'll let you figure out the Ansible task to copy the certs to Evilginx's directo
 
 #### Docker Compose
 
-In order to easily make update to the source code of Evilginx2, I have a CICD pipeline that automaticaly builds a docker image and pushes it to DigitalOcean's registry. We can from Ansible, authenticate to the registry and pull the image. 
+In order to easily make updates to the source code of Evilginx2, I have a CICD pipeline that automatically builds a docker image and pushes it to DigitalOcean's registry. We can now, from Ansible, authenticate to the registry and pull the image. 
 
 Authenticating to the registry:
 ```yaml
@@ -282,7 +280,7 @@ services:
       - "127.0.0.1:8443:8443"
     command: ["sleep", "infinity"]
 ```
-We mount the `/opt/evilginx2/config` directory to `/root/.evilginx/` to upload our own configuration file from Ansible. Phishlet and redirector directories are also mounted, in case we need to use a phishlet that isn't built into the image. 
+We mount the `/opt/evilginx2/config`directory to `/root/.evilginx/`upload our own configuration file from Ansible. Phishlets and redirectors directories are also mounted in case we need to use a phishlet that isn't built into the image. 
 
 
 #### Redirect IOC
@@ -305,7 +303,7 @@ Evilginx2 has the option to redirect blacklisted IPs to an unauth URL, protectin
 <html><head><meta name='referrer' content='no-referrer'><script>top.location.href='https://www.youtube.com/watch?v=dQw4w9WgXcQ';</script></head><body></body></html>
 ```
 
-Searching Google and Shodan for this HTML doesn't return any interesting results, but Github search finds this :
+Searching Google and Shodan for this HTML doesn't return any interesting results, but GitHub search finds this :
 
 
 ![github_search](./imgs/github_search.png)
@@ -393,8 +391,8 @@ Firstly, we'll configure Caddy as our reverse proxy, here's an example configura
 We need to add a few statements to the *reverse_proxy* option. 
 
 
-> ***tls_server_name** sets the server name used when verifying the certificate received in the TLS handshake. By default, this will use the upstream address' host part. <p>
-You only need to override this if your upstream address does not match the certificate the upstream is likely to use. For example if the upstream address is an IP address, then you would need to configure this to the hostname being served by the upstream server.<p>
+> **tls_server_name** sets the server name used when verifying the certificate received in the TLS handshake. By default, this will use the upstream address' host part. <p>
+You only need to override this if your upstream address does not match the certificate the upstream is likely to use. For example, if the upstream address is an IP address, then you would need to configure this to the hostname being served by the upstream server.<p>
 A request placeholder may be used, in which case a clone of the HTTP transport config will be used on every request, which may incur a performance penalty.*
 
 If we don't set the *SNI* with `tls_server_name` and send a request with `curl https://academy.testing-domain.ch`, Evilginx2 receives the request like so: 
@@ -406,7 +404,7 @@ If we don't set the *SNI* with `tls_server_name` and send a request with `curl h
 [dbg] fn_IsActiveHostname: Hostname: [academy.testing-domain.ch]
 [dbg] TLS hostname unsupported: localhost
 ```
-With the `tls_server_name` configured, the hostname is correctly determined by Evilginx2. 
+With the `tls_server_name`configured, the hostname is correctly determined by Evilginx2. 
 ```
 [dbg] Got connection
 [dbg] SNI: academy.testing-domain.ch
@@ -496,7 +494,7 @@ Here are the Ansible tasks to configure this port forward :
 Since this task will run from the redirector role, we need to use *delegate_to* to target the evilginx host for the *Update evilginx host authorized_keys* task.  
 
 
-> ***trust_pool** configures the source of certificate authorities (CA) providing certificates against which to validate client certificates.*
+> **trust_pool** configures the source of certificate authorities (CA) providing certificates against which to validate client certificates.*
 
 We also need to set the `trust_pool` as we generate our own custom certificates (in the **Evilginx2** chapter) and need to tell Caddy to trust the certs it's going to see when proxying requests. 
 
