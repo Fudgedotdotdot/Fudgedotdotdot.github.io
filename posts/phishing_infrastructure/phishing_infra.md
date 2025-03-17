@@ -1,5 +1,6 @@
 # Building phishing infrastructure with Terraform and Ansible
 
+This is an article about building phishing or really any kind of pentest/red team infrastructure using Terraform and Ansible. We'll go over the architecture, Terraform setup and Ansible tasks that make it possible to build reliable and secure infrastructure. 
 
 ## Architecture / Design
 
