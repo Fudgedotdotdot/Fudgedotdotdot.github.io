@@ -1,5 +1,5 @@
 # Using python's AST module to defeat Yara
-This article will touch on python's AST module and how to use it to obfuscate python code. 
+This article will touch on python's AST module and how to use it to obfuscate python code. I started this to hide the Medusa agent for Mythic from the public yara rules that detected it, and I ended up writing this whole blog that doesn't have a lot of things to do with Medusa. 
 
 ## Python's AST
 Python has a module called *AST* or Abstract-Syntax-Tree, which allows us to inspect and change python code in it's AST representation. 
