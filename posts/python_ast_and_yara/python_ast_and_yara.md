@@ -34,6 +34,10 @@ Here's a quick example of a simple function and a fstring and it's AST represent
 </style>
 
 <table class="code-table">
+    <thead>
+          <th style="border: none !important;"> Python</td>
+          <th style="border: none !important;"> AST</th>
+    </thead> 
   <tr>
     <td>
       <pre class="code-block"><code class="lang-python">def myfunction(s):
