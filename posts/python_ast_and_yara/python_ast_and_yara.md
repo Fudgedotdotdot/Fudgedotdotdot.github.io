@@ -227,7 +227,7 @@ def _write_fstring_inner(self, node):
         for value in node.values:
             self._write_fstring_inner(value)
     elif isinstance(node, Constant) and isinstance(node.value, str):
-        value = node.value.replace("{", "{{").replace("}", "}}")
+        value = node.value.replace("\{", "\{\{").replace("}", "\}\}")
         self.write(value)
     elif isinstance(node, FormattedValue):
         self.visit_FormattedValue(node)
