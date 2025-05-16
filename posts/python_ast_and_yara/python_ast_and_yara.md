@@ -1,5 +1,5 @@
 # Using python's AST module to defeat Yara
-This article will touch on python's AST module and how to use it to obfuscate python code. The Mythic agent [Medusa](https://github.com/MythicAgents/Medusa) will be used as an example of successfull obfuscation from yara rules. 
+This article will touch on python's AST module and how to use it to obfuscate python code. 
 
 ## Python's AST
 Python has a module called *AST* or Abstract-Syntax-Tree, which allows us to inspect and change python code in it's AST representation. 
