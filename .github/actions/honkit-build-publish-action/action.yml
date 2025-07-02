@@ -1,9 +1,0 @@
-name: 'Build and Publish Honkit'
-description: 'Build Honkit static site files and deploy to GitHub Pages.'
-author: 'Fudgedotdotdot'
-branding:
-  icon: 'book'
-  color: 'purple'
-runs:
-  using: 'docker'
-  image: 'Dockerfile'
