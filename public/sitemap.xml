@@ -2,41 +2,41 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>/</loc>
+    <loc>//localhost:1313/</loc>
     <lastmod>2030-07-02T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>/posts/</loc>
+    <loc>//localhost:1313/posts/</loc>
     <lastmod>2030-07-02T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>/posts/phishing_infra/</loc>
+    <loc>//localhost:1313/posts/phishing_infra/</loc>
     <lastmod>2025-07-02T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>/categories/</loc>
+    <loc>//localhost:1313/categories/</loc>
     <lastmod>2025-07-02T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>/categories/infrastructure/</loc>
+    <loc>//localhost:1313/categories/infrastructure/</loc>
     <lastmod>2025-07-02T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>/categories/phishing/</loc>
+    <loc>//localhost:1313/categories/phishing/</loc>
     <lastmod>2025-07-02T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>/posts/raspberry_penbox/</loc>
+    <loc>//localhost:1313/posts/raspberry_penbox/</loc>
     <lastmod>2025-06-28T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>/categories/nim/</loc>
+    <loc>//localhost:1313/categories/nim/</loc>
     <lastmod>2024-09-12T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>/posts/nim_and_zig_heart/</loc>
+    <loc>//localhost:1313/posts/nim_and_zig_heart/</loc>
     <lastmod>2024-09-12T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>/categories/sandbox-evasion/</loc>
+    <loc>//localhost:1313/categories/sandbox-evasion/</loc>
     <lastmod>2024-09-02T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>/posts/sandbox-evasion-in-2024/</loc>
+    <loc>//localhost:1313/posts/sandbox-evasion-in-2024/</loc>
     <lastmod>2024-09-02T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>/about/</loc>
+    <loc>//localhost:1313/about/</loc>
   </url><url>
-    <loc>/tags/</loc>
+    <loc>//localhost:1313/tags/</loc>
   </url>
 </urlset>

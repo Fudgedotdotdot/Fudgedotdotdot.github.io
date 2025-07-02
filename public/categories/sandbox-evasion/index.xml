@@ -2,17 +2,17 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Sandbox Evasion on Fudgedotdotdot&#39;s Blog</title>
-    <link>/categories/sandbox-evasion/</link>
+    <link>//localhost:1313/categories/sandbox-evasion/</link>
     <description>Recent content in Sandbox Evasion on Fudgedotdotdot&#39;s Blog</description>
     <generator>Hugo</generator>
     <language>en-us</language>
     <lastBuildDate>Mon, 02 Sep 2024 00:00:00 +0000</lastBuildDate>
-    <atom:link href="/categories/sandbox-evasion/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="//localhost:1313/categories/sandbox-evasion/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>The state of sandbox evasion techniques in 2024</title>
-      <link>/posts/sandbox-evasion-in-2024/</link>
+      <link>//localhost:1313/posts/sandbox-evasion-in-2024/</link>
       <pubDate>Mon, 02 Sep 2024 00:00:00 +0000</pubDate>
-      <guid>/posts/sandbox-evasion-in-2024/</guid>
+      <guid>//localhost:1313/posts/sandbox-evasion-in-2024/</guid>
       <description>&lt;p&gt;This post is  about sandbox evasion techniques and their usefulness in more targeted engagements.&lt;/p&gt;</description>
     </item>
   </channel>

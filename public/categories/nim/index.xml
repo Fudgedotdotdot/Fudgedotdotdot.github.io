@@ -2,17 +2,17 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Nim on Fudgedotdotdot&#39;s Blog</title>
-    <link>/categories/nim/</link>
+    <link>//localhost:1313/categories/nim/</link>
     <description>Recent content in Nim on Fudgedotdotdot&#39;s Blog</description>
     <generator>Hugo</generator>
     <language>en-us</language>
     <lastBuildDate>Thu, 12 Sep 2024 00:00:00 +0000</lastBuildDate>
-    <atom:link href="/categories/nim/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="//localhost:1313/categories/nim/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>Nim &#43; Zig = ❤️</title>
-      <link>/posts/nim_and_zig_heart/</link>
+      <link>//localhost:1313/posts/nim_and_zig_heart/</link>
       <pubDate>Thu, 12 Sep 2024 00:00:00 +0000</pubDate>
-      <guid>/posts/nim_and_zig_heart/</guid>
+      <guid>//localhost:1313/posts/nim_and_zig_heart/</guid>
       <description>&lt;p&gt;Using Zig to compile Nim code, avoiding static malware detections.&lt;/p&gt;</description>
     </item>
   </channel>

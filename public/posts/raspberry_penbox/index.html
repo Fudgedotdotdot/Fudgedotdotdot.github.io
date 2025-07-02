@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en-us">
 
-<head>
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
     <title>
 
 Building a RaspberryPi pwnbox with Tailscale | Fudgedotdotdot&#39;s blog
@@ -14,7 +14,7 @@ Building a RaspberryPi pwnbox with Tailscale | Fudgedotdotdot&#39;s blog
 <meta name="generator" content="Hugo 0.147.8">
 
 
-<link rel="canonical" href="/posts/raspberry_penbox/" >
+<link rel="canonical" href="//localhost:1313/posts/raspberry_penbox/" >
 
 
 
@@ -32,7 +32,7 @@ Building a RaspberryPi pwnbox with Tailscale | Fudgedotdotdot&#39;s blog
         <header class="headerWrapper">
     <div class="header">
         <div>
-            <a class="terminal" href="/">
+            <a class="terminal" href="//localhost:1313/">
                 <span>fudge@pwnbox.com ~ $</span>
             </a>
         </div>
@@ -42,12 +42,12 @@ Building a RaspberryPi pwnbox with Tailscale | Fudgedotdotdot&#39;s blog
             <ul>
                 
                 <li>
-                    <a href="/about" title="" >
+                    <a href="//localhost:1313/about" title="" >
                         ~/about</a>
                 </li>
                 
                 <li>
-                    <a href="/posts" title="" >
+                    <a href="//localhost:1313/posts" title="" >
                         ~/blog</a>
                 </li>
                 
@@ -177,7 +177,7 @@ sudo systemctl disable wpa_supplicant@wlan1.service
 </span></span></code></pre></div><h2 id="internal">Internal</h2>
 <p>We&rsquo;ll be using the excellent <a href="https://github.com/ThePorgs/Exegol">Exegol</a> project for our internal pentesting needs. Exegol&rsquo;s documentation is available <a href="https://docs.exegol.com/">here</a>.</p>
 <p>I&rsquo;m assuming that you know how to read documentation to install it.</p>
-<p>We are building our own exegol image to add extra tools. There is a setup.sh script that is executed when a container is launched, but I prefer to have my tools built into the image directly.</p>
+<p>We are building our own Exegol image to add extra tools. There is a setup.sh script that is executed when a container is launched, but I prefer to have my tools built into the image directly.</p>
 <p>After installing Exegol, inside the <code>/home/fudge/.exegol/exegol-images</code>, add a <code>custom.dockerfile</code> file. This is the same format as the other dockerfiles, except we are pulling the <code>free</code> image, and adding our own packages on top of it.</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-docker" data-lang="docker"><span style="display:flex;"><span><span style="color:#66d9ef">ARG</span> AD_IMAGE_REGISTRY<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;nwodtuhs/exegol&#34;</span><span style="color:#960050;background-color:#1e0010">
 </span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">ARG</span> AD_IMAGE_NAME<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;free&#34;</span><span style="color:#960050;background-color:#1e0010">
@@ -257,7 +257,31 @@ sudo systemctl disable wpa_supplicant@wlan1.service
 </span></span><span style="display:flex;"><span><span style="color:#ae81ff">└─────────┴──────────┴───────────────────────┘</span>
 </span></span></code></pre></div><p>The image can be started with <code>exegol start &lt;name&gt; custom</code>.</p>
 <h2 id="tailscale">TailScale</h2>
-<p>Finally,</p>
+<p>We can setup Tailscale for remote access in case we&rsquo;re not in Wifi range. This is stupid simple to install, follow the guide <a href="https://tailscale.com/download/linux/rpi">here</a> and you&rsquo;re up and running a few seconds.</p>
+<p>Tailscale offers device code authentication aswell, so no need for a desktop environment, we can authenticate to our tailnet with a headless RaspberryPi using <code>sudo tailscale up</code> and visiting the link printed to the console.</p>
+<p>Then, we can get tailscale&rsquo;s status which shows the other devices in the network:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>fudge@pwnbox:~ $ sudo tailscale status
+</span></span><span style="display:flex;"><span>100.xx.xx.xx    pwnbox               fudge@ linux   -
+</span></span><span style="display:flex;"><span>100.xx.xx.xx    multivac             fudge@ windows -
+</span></span><span style="display:flex;"><span>100.xx.xx.xx    raspb                fudge@ linux   -
+</span></span></code></pre></div><p>We can also see the device as connected in the admin console</p>
+<p><img src="./tailscale.png" alt=""></p>
+<p>Finally connect from a seperate wifi network on <strong>multivac</strong> to the tailscale IP for <strong>pwnbox</strong> to end this article.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>PS ❯ ssh fudge@100.xx.xx.xx
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Linux pwnbox 6.12.25+rpt-rpi-v8 <span style="color:#75715e">#1 SMP PREEMPT Debian 1:6.12.25-1+rpt1 (2025-04-30) aarch64</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>The programs included with the Debian GNU/Linux system are free software;
+</span></span><span style="display:flex;"><span>the exact distribution terms <span style="color:#66d9ef">for</span> each program are described in the
+</span></span><span style="display:flex;"><span>individual files in /usr/share/doc/*/copyright.
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+</span></span><span style="display:flex;"><span>permitted by applicable law.
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>fudge@pwnbos:~ $
+</span></span></code></pre></div><hr>
+<p>Thanks for reading,<br>
+Fudge&hellip;</p>
     </div>
 </div>
 

@@ -147,7 +147,7 @@ We'll be using the excellent [Exegol](https://github.com/ThePorgs/Exegol) projec
 I'm assuming that you know how to read documentation to install it.  
 
 
-We are building our own exegol image to add extra tools. There is a setup.sh script that is executed when a container is launched, but I prefer to have my tools built into the image directly. 
+We are building our own Exegol image to add extra tools. There is a setup.sh script that is executed when a container is launched, but I prefer to have my tools built into the image directly. 
 
 
 After installing Exegol, inside the `/home/fudge/.exegol/exegol-images`, add a `custom.dockerfile` file. This is the same format as the other dockerfiles, except we are pulling the `free` image, and adding our own packages on top of it. 
@@ -247,4 +247,43 @@ The image can be started with `exegol start <name> custom`.
 ## TailScale
 
 
-Finally, 
+We can setup Tailscale for remote access in case we're not in Wifi range. This is stupid simple to install, follow the guide [here](https://tailscale.com/download/linux/rpi) and you're up and running a few seconds. 
+
+Tailscale offers device code authentication aswell, so no need for a desktop environment, we can authenticate to our tailnet with a headless RaspberryPi using `sudo tailscale up` and visiting the link printed to the console.
+
+Then, we can get tailscale's status which shows the other devices in the network:
+
+```bash
+fudge@pwnbox:~ $ sudo tailscale status
+100.xx.xx.xx    pwnbox               fudge@ linux   -
+100.xx.xx.xx    multivac             fudge@ windows -
+100.xx.xx.xx    raspb                fudge@ linux   -
+```
+We can also see the device as connected in the admin console
+
+![](./tailscale.png)
+
+
+
+
+Finally connect from a seperate wifi network on **multivac** to the tailscale IP for **pwnbox** to end this article. 
+```bash
+PS ❯ ssh fudge@100.xx.xx.xx
+
+Linux pwnbox 6.12.25+rpt-rpi-v8 #1 SMP PREEMPT Debian 1:6.12.25-1+rpt1 (2025-04-30) aarch64
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+
+fudge@pwnbos:~ $
+```
+
+
+--------------------
+
+Thanks for reading,<br>
+Fudge...
