@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Sandbox on My New Hugo Site</title>
+    <link>//localhost:1313/categories/sandbox/</link>
+    <description>Recent content in Sandbox on My New Hugo Site</description>
+    <generator>Hugo</generator>
+    <language>en-us</language>
+    <lastBuildDate>Tue, 02 Jul 2024 00:00:00 +0000</lastBuildDate>
+    <atom:link href="//localhost:1313/categories/sandbox/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>The state of sandbox evasion techniques in 2024</title>
+      <link>//localhost:1313/posts/sandbox-evasion-in-2024/</link>
+      <pubDate>Tue, 02 Jul 2024 00:00:00 +0000</pubDate>
+      <guid>//localhost:1313/posts/sandbox-evasion-in-2024/</guid>
+      <description>&lt;p&gt;This post is  about sandbox evasion techniques and their usefulness in more targeted engagements.&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

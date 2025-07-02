@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+    <title>
+
+Building Phishing Infrastructure With Terraform and Ansible | Fudgedotdotdot&#39;s blog
+</title>
+
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="">
+
+<meta name="generator" content="Hugo 0.147.8">
+
+
+<link rel="canonical" href="/posts/phishing_infra/" >
+
+
+
+
+<link href="/css/style.min.b09aa93f26d8e41172a027454356b2b8398e094069be17f6c0a0e3e7d53c8564.css" rel="stylesheet">
+
+
+
+
+</head>
+
+<body>
+
+    <div class="flexWrapper">
+        <header class="headerWrapper">
+    <div class="header">
+        <div>
+            <a class="terminal" href="/">
+                <span>fudge@penbox.com ~ $</span>
+            </a>
+        </div>
+        <input class="side-menu" type="checkbox" id="side-menu">
+        <label class="hamb" for="side-menu"><span class="hamb-line"></span></label>
+        <nav class="headerLinks">
+            <ul>
+                
+                <li>
+                    <a href="/about" title="" >
+                        ~/about</a>
+                </li>
+                
+                <li>
+                    <a href="/posts" title="" >
+                        ~/blog</a>
+                </li>
+                
+            </ul>
+        </nav>
+    </div>
+</header>
+
+
+        <div class="content">
+            <main class="main">
+                
+<div class="postWrapper">
+    <h1>Building Phishing Infrastructure With Terraform and Ansible</h1>
+    
+    
+    <section class="postMetadata">
+        <dl>
+            
+            
+            
+                
+<dt>categories</dt>
+<dd><span></span>
+    <a href="/categories/infrastructure/">Infrastructure</a><span></span>
+    <a href="/categories/phishing/">Phishing</a></dd>
+            
+            
+                <dt>published</dt>
+                
+                <dd><time datetime="2025-07-02">July 2, 2025</time></dd>
+            
+            
+        </dl>
+    </section>
+    
+    <div>
+        <p>Building phishing or really any kind of pentest/red team infrastructure using Terraform and Ansible.</p>
+<p>In this article, we&rsquo;ll go over the architecture, Terraform setup and Ansible tasks that make it possible to build reliable and secure infrastructure.</p>
+<p>This isn&rsquo;t new, I remember reading Rasatmouse&rsquo;s 2021 blog a while back about Terraform and Ansible <a href="https://rastamouse.me/infrastructure-as-code-terraform-ansible/">https://rastamouse.me/infrastructure-as-code-terraform-ansible/</a>, and Marcello&rsquo;s blog <a href="https://byt3bl33d3r.substack.com/p/taking-the-pain-out-of-c2-infrastructure">https://byt3bl33d3r.substack.com/p/taking-the-pain-out-of-c2-infrastructure</a>, or APTortellini&rsquo;s blog <a href="https://aptw.tf/2021/11/25/c2-redirectors-using-caddy.html">https://aptw.tf/2021/11/25/c2-redirectors-using-caddy.html</a> that both talked about Caddy as a reverse proxy for Red Team operations.
+I&rsquo;ve also seen InfoSec folks discuss RedTeam infra on Twitter that sparked the idea of building such a thing on my own.</p>
+<p>Thanks to all these people !</p>
+<h2 id="table-of-contents">Table of Contents</h2>
+<ul>
+<li><a href="#architecture-and-design">Architecture and Design</a></li>
+<li><a href="#terraform-and-ansible">Terraform and Ansible</a></li>
+<li><a href="#evilginx2-configuration">Evilginx2 configuration</a></li>
+<li><a href="#redirector-configuration">Redirector configuration</a></li>
+<li><a href="#redirector-configuration">Gophish configuration</a></li>
+<li><a href="#redirector-configuration">Postfix configuration</a></li>
+<li><a href="#email-and-network-analysis">Email and network email analysis</a></li>
+<li><a href="#improvements">Improvements</a></li>
+</ul>
+<h2 id="architecture-and-design">Architecture and Design</h2>
+<p>Here&rsquo;s a diagram of the architecture.</p>
+<p style="text-align: center;">
+<img src="diagram.drawio.svg">
+</p>
+<p>We are using two separate servers for <em>redirector</em> and <em>evilginx2</em>, following the usual design for C2 infrastructure. This design prevents <em>Evilginx2</em> from being exposed directly on the Internet, and gives us the option to replace the redirector in case the domain gets flagged without having to redeploy, reconfigure and retest the entire infrastructure.</p>
+<p>We&rsquo;ll see details on each segment later.</p>
+<h2 id="terraform-and-ansible">Terraform and Ansible</h2>
+<p>We&rsquo;ll use Terraform and Ansible to deploy this design, DevOps teams can&rsquo;t have all the fun.</p>
+<p>I&rsquo;ll skip the Terraform part because the setup will depend on the cloud provider you&rsquo;ll use.</p>
+<p><em>Ensure that you configure the instances with an SSH key that is readily available on the machine where you&rsquo;ll be running Ansible.</em></p>
+<p>The most important part is to setup DNS correctly, in my DigitalOcean config, this looks like this:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#ae81ff">resource &#34;digitalocean_domain&#34; &#34;domain&#34; {</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ae81ff">name = var.domain_name</span>
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">resource &#34;digitalocean_record&#34; &#34;wildcard&#34; {</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ae81ff">domain = digitalocean_domain.domain.id</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ae81ff">type   = &#34;A&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ae81ff">name   = &#34;*&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ae81ff">ttl = 1800</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ae81ff">value  = digitalocean_droplet.evilginx[&#34;redirector&#34;].ipv4_address</span>
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">resource &#34;digitalocean_record&#34; &#34;a&#34; {</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ae81ff">domain = digitalocean_domain.domain.id</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ae81ff">type   = &#34;A&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ae81ff">name   = &#34;@&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ae81ff">ttl = 1800</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ae81ff">value  = digitalocean_droplet.evilginx[&#34;redirector&#34;].ipv4_address</span>
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>This will ensure that the domain and subdomains will point to our redirector IP. Notice that we don&rsquo;t use the evilginx server IP or change the NS record.</p>
+<p>For Ansible, we&rsquo;ll discuss the directory structure here, and the details of the main tasks in the next chapters.</p>
+<pre tabindex="0"><code>.
+├── evilginx2.yml
+├── hosts.yml
+├── redirector.yml
+├── site.yml
+└── roles
+    ├── common
+    │   ├── tasks
+    │   │   ├── main.yml
+    │   │   └── prerequisites.yml
+    │   └── vars
+    │       └── main.yml
+    ├── evilginx
+    │   ├── files
+    │   │   ├── docker-compose.yml
+    │   │   └── evilginx2
+    │   │       └── config
+    │   │           └── config.j2
+    │   ├── tasks
+    │   │   ├── firewall.yml
+    │   │   ├── generate_certs.yml
+    │   │   ├── main.yml
+    │   │   ├── prerequisites.yml
+    │   │   └── setup_evilginx2.yml
+    │   └── vars
+    │       └── main.yml
+    └── redirector
+        ├── files
+        │   ├── caddy
+        │   │   ├── caddy
+        │   │   ├── Caddyfile.j2
+        │   │   ├── caddy.service
+        │   │   └── filters
+        │   │       ├── bad_ips.caddy
+        │   │       ├── bad_ua.caddy
+        │   │       ├── headers_standard.caddy
+        │   │       └── tls.caddy
+        │   ├── tunnels
+        │   │   └── autossh_https_service.j2
+        │   └── template_website
+        │       └── template1
+        ├── tasks
+        │   ├── firewall.yml
+        │   ├── main.yml
+        │   ├── setup_caddy.yml
+        │   ├── ssh_portfwd.yml
+        │   ├── start_caddy.yml
+        │   └── webserver.yml
+        └── vars
+            └── main.yml
+</code></pre><p>This recommended directory setup from Ansible helps manage servers with different roles. In this case, the site.xml imports the host playbooks :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span>- <span style="color:#f92672">import_playbook</span>: <span style="color:#ae81ff">evilginx2.yml</span>
+</span></span><span style="display:flex;"><span>- <span style="color:#f92672">import_playbook</span>: <span style="color:#ae81ff">redirector.yml</span>
+</span></span></code></pre></div><p>Each playbook contains the host on which role tasks can be executed.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span>- <span style="color:#f92672">hosts</span>: <span style="color:#ae81ff">evilginx</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">roles</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">common</span>
+</span></span><span style="display:flex;"><span>    - <span style="color:#ae81ff">evilginx</span>
+</span></span></code></pre></div><p>Here, we target evilginx hosts with the <em>common</em> and <em>evilginx</em> roles. In the tree command output above, we can see the <em>common</em>, <em>evilginx</em> and <em>redirector</em> roles.</p>
+<p>Every role directory contains:</p>
+<ul>
+<li><strong>files</strong> - for static or template files</li>
+<li><strong>tasks</strong> - for ansible tasks</li>
+<li><strong>vars</strong> - for role-specific variables</li>
+</ul>
+<p>In the task directory, the <em>main.yml</em> file will be executed by Ansible automatically. We can split up tasks and use <code>include_tasks</code> in <em>main.yml</em> to import them.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span>- <span style="color:#f92672">include_tasks</span>: <span style="color:#ae81ff">prerequisites.yml</span>
+</span></span><span style="display:flex;"><span>- <span style="color:#f92672">include_tasks</span>: <span style="color:#ae81ff">generate_certs.yml</span>
+</span></span><span style="display:flex;"><span>- <span style="color:#f92672">include_tasks</span>: <span style="color:#ae81ff">setup_evilginx2.yml</span>
+</span></span><span style="display:flex;"><span>- <span style="color:#f92672">include_tasks</span>: <span style="color:#ae81ff">firewall.yml</span>
+</span></span></code></pre></div><p>This structure also means that we can either configure all the servers using <em>site.xml</em> or each individual hosts with their respective playbooks.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ansible-playbook -u root -i hosts.yml site.yml
+</span></span><span style="display:flex;"><span>ansible-playbook -u root -i hosts.yml &lt;evilginx2.yml or redirector.yml&gt;
+</span></span></code></pre></div><p>Finally, the <em>hosts.yml</em> file contains a list of IPs per role :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">redirector</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">hosts</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">164.92.212.233</span>:
+</span></span><span style="display:flex;"><span><span style="color:#f92672">evilginx</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">hosts</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">164.92.210.139</span>:
+</span></span></code></pre></div><h2 id="evilginx2-configuration">Evilginx2 configuration</h2>
+<h4 id="custom-ca">Custom CA</h4>
+<p>The diagram shows that we are using a custom CA for Evilginx. We do this to generate our own certs instead of letting Evilginx2 request them from LetsEncrypt, or use the <code>-developer</code> argument that will generate self-signed certs. While this argument seems to be the solution to generate self-signed certs, the <code>ca.crt</code> <code>ca.key</code> are only created when launching Evilginx, which is a problem when deploying our infrastructure as we won&rsquo;t have access to these keys to configure our redirector to trust Evilginx2&rsquo;s developer certs.</p>
+<p>Instead, we can create our own CA, generate certs for the domain and subdomains (as a wildcard) and install them as <em>@mrgretzky</em>&rsquo;s tweet explains <a href="https://x.com/mrgretzky/status/1763584080245887320?t=QXA0bqeBrNP4xn8RoA1jfw&amp;s=31">https://x.com/mrgretzky/status/1763584080245887320?t=QXA0bqeBrNP4xn8RoA1jfw&amp;s=31</a>:</p>
+<pre tabindex="0"><code>1. Put your certificate and private key in: ~/.evilginx/crt/sites/&lt;anyname&gt;/
+2. Disable LetsEncrypt with: `config autocert off`
+3. Profit! (wildcard certs supported)
+</code></pre><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#75715e"># source: https://gist.github.com/klo2k/6506d161e9a096f74e4122f98665ce70</span>
+</span></span><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Generate Certificate Authority (CA) self-signed certificate</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">block</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Generate Root CA private key</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">openssl_privatekey</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">path</span>: <span style="color:#e6db74">&#34;/root/certs/ca.key&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    - <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Generate Root CA CSR</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">openssl_csr</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">path</span>: <span style="color:#e6db74">&#34;/root/certs/ca.csr&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">privatekey_path</span>: <span style="color:#e6db74">&#34;/root/certs/ca.key&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">common_name</span>: <span style="color:#e6db74">&#34;{{openssl_csr_common_name}}&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">organization_name</span>: <span style="color:#e6db74">&#34;{{openssl_csr_organization_name}}&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">basic_constraints</span>:
+</span></span><span style="display:flex;"><span>          - <span style="color:#ae81ff">CA:TRUE</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">basic_constraints_critical</span>: <span style="color:#66d9ef">yes</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">key_usage</span>:
+</span></span><span style="display:flex;"><span>          - <span style="color:#ae81ff">keyCertSign</span>
+</span></span><span style="display:flex;"><span>          - <span style="color:#ae81ff">digitalSignature</span>
+</span></span><span style="display:flex;"><span>          - <span style="color:#ae81ff">cRLSign</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">key_usage_critical</span>: <span style="color:#66d9ef">yes</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    - <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Generate Root CA certificate</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">openssl_certificate</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">path</span>: <span style="color:#e6db74">&#34;/root/certs/ca.crt&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">privatekey_path</span>: <span style="color:#e6db74">&#34;/root/certs/ca.key&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">csr_path</span>: <span style="color:#e6db74">&#34;/root/certs/ca.csr&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">provider</span>: <span style="color:#ae81ff">selfsigned</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Generate domain key, CSR and self-signed certificate (using own CA)</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">block</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Generate host/internal domain private key</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">openssl_privatekey</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">path</span>: <span style="color:#e6db74">&#34;/root/certs/{{cert_common_name}}.key&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    - <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Generate host/internal domain CSR</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">openssl_csr</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">path</span>: <span style="color:#e6db74">&#34;/root/certs/{{cert_common_name}}.csr&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">privatekey_path</span>: <span style="color:#e6db74">&#34;/root/certs/{{cert_common_name}}.key&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">common_name</span>: <span style="color:#e6db74">&#34;{{cert_common_name}}&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">subject_alt_name</span>: <span style="color:#e6db74">&#34;{{cert_subject_alt_name}}&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">organization_name</span>: <span style="color:#e6db74">&#34;{{openssl_csr_organization_name}}&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    - <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Generate host/internal domain certificate (with own self-signed CA)</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">openssl_certificate</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">path</span>: <span style="color:#e6db74">&#34;/root/certs/{{cert_common_name}}.hostonly.crt&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">csr_path</span>: <span style="color:#e6db74">&#34;/root/certs/{{cert_common_name}}.csr&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">ownca_path</span>: <span style="color:#e6db74">&#34;/root/certs/ca.crt&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">ownca_privatekey_path</span>: <span style="color:#e6db74">&#34;/root/certs/ca.key&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">ownca_not_after</span>: <span style="color:#e6db74">&#34;{{ownca_not_after}}&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">provider</span>: <span style="color:#ae81ff">ownca</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    - <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Generate host/internal domain certificate (with own self-signed CA) - with full chain of trust</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">ansible.builtin.shell</span>: <span style="color:#e6db74">&#34;cat /root/certs/{{cert_common_name}}.hostonly.crt /root/certs/ca.crt &gt; /root/certs/{{cert_common_name}}.crt&#34;</span>
+</span></span></code></pre></div><p>We use the <em>vars</em> directory in the <em>evilginx</em> role to store the variables for the certs:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">cert_common_name</span>: <span style="color:#e6db74">&#34;{{ domain }}&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">cert_subject_alt_name</span>: <span style="color:#e6db74">&#34;DNS:*.{{ domain }}&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">ownca_not_after</span>: <span style="color:#e6db74">&#34;+397d&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">openssl_csr_common_name</span>: <span style="color:#e6db74">&#34;My CA&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">openssl_csr_organization_name</span>: <span style="color:#e6db74">&#34;My Organisation&#34;</span>
+</span></span></code></pre></div><p>I&rsquo;ll let you figure out the Ansible task to copy the certs to Evilginx&rsquo;s directory.</p>
+<h4 id="docker-compose">Docker Compose</h4>
+<p>In order to easily make updates to the source code of Evilginx2, I have a CICD pipeline that automatically builds a docker image and pushes it to DigitalOcean&rsquo;s registry. We can now, from Ansible, authenticate to the registry and pull the image.</p>
+<p>Authenticating to the registry:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Fetch docker creds</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">ansible.builtin.command</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">cmd</span>: &gt;-<span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      curl -s -H &#34;Authorization: Bearer {{ lookup(&#39;env&#39;, &#39;DIGITALOCEAN_TOKEN&#39;) }}&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      &#34;https://api.digitalocean.com/v2/registry/docker-credentials?expiry_seconds=600&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">delegate_to</span>: <span style="color:#ae81ff">localhost</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">register</span>: <span style="color:#ae81ff">docker_creds</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Upload Docker login file</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">ansible.builtin.copy</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">content</span>: <span style="color:#e6db74">&#34;{{ docker_creds.stdout }}&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">dest</span>: <span style="color:#ae81ff">/root/.docker/config.json</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">mode</span>: <span style="color:#e6db74">&#39;0600&#39;</span>
+</span></span></code></pre></div><p>The docker compose file used to deploy the image:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">evilginx2</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">my_evilginx2</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">registry.digitalocean.com/my-registry/my-evilginx2</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">/opt/evilginx2/phishlets:/volume/phishlets </span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">/opt/evilginx2/redirectors:/volume/redirectors</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">/opt/evilginx2/config:/root/.evilginx/</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;127.0.0.1:8443:8443&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">command</span>: [<span style="color:#e6db74">&#34;sleep&#34;</span>, <span style="color:#e6db74">&#34;infinity&#34;</span>]
+</span></span></code></pre></div><p>We mount the <code>/opt/evilginx2/config</code>directory to <code>/root/.evilginx/</code>upload our own configuration file from Ansible. Phishlets and redirectors directories are also mounted in case we need to use a phishlet that isn&rsquo;t built into the image.</p>
+<h4 id="redirect-ioc">Redirect IOC</h4>
+<p>Just something I found when playing around with this reverse proxy setup.</p>
+<p>Evilginx2 has the option to redirect blacklisted IPs to an unauth URL, protecting your links. Using curl to make a HTTP request from an IP that is blacklisted will return a <strong>200 OK</strong> with this odd HTML body.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-html" data-lang="html"><span style="display:flex;"><span>&gt; GET / HTTP/1.1
+</span></span><span style="display:flex;"><span>&gt; Host: academy.testing-domain.ch:8443
+</span></span><span style="display:flex;"><span>&gt; User-Agent: curl/7.88.1
+</span></span><span style="display:flex;"><span>&gt; Accept: */*
+</span></span><span style="display:flex;"><span>&gt;
+</span></span><span style="display:flex;"><span>&lt; <span style="color:#f92672">HTTP</span><span style="color:#960050;background-color:#1e0010">/</span><span style="color:#a6e22e">1</span><span style="color:#960050;background-color:#1e0010">.</span><span style="color:#a6e22e">1</span> <span style="color:#a6e22e">200</span> <span style="color:#a6e22e">OK</span>
+</span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">&lt;</span> <span style="color:#a6e22e">Cache-Control:</span> <span style="color:#a6e22e">no-cache</span><span style="color:#960050;background-color:#1e0010">,</span> <span style="color:#a6e22e">no-store</span>
+</span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">&lt;</span> <span style="color:#a6e22e">Connection:</span> <span style="color:#a6e22e">close</span>
+</span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">&lt;</span> <span style="color:#a6e22e">Content-Type:</span> <span style="color:#a6e22e">text</span><span style="color:#960050;background-color:#1e0010">/</span><span style="color:#a6e22e">html</span>
+</span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">&lt;</span> <span style="color:#a6e22e">Transfer-Encoding:</span> <span style="color:#a6e22e">chunked</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">&lt;</span><span style="color:#a6e22e">html</span>&gt;&lt;<span style="color:#f92672">head</span>&gt;&lt;<span style="color:#f92672">meta</span> <span style="color:#a6e22e">name</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#39;referrer&#39;</span> <span style="color:#a6e22e">content</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#39;no-referrer&#39;</span>&gt;&lt;<span style="color:#f92672">script</span>&gt;<span style="color:#a6e22e">top</span>.<span style="color:#a6e22e">location</span>.<span style="color:#a6e22e">href</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#39;https://www.youtube.com/watch?v=dQw4w9WgXcQ&#39;</span>;&lt;/<span style="color:#f92672">script</span>&gt;&lt;/<span style="color:#f92672">head</span>&gt;&lt;<span style="color:#f92672">body</span>&gt;&lt;/<span style="color:#f92672">body</span>&gt;&lt;/<span style="color:#f92672">html</span>&gt;
+</span></span></code></pre></div><p>Searching Google and Shodan for this HTML doesn&rsquo;t return any interesting results, but GitHub search finds this :</p>
+<p><img src="./imgs/github_search.png" alt="github_search"></p>
+<p>We should change the code in <em>http_proxy.go</em> to return a 301 :</p>
+<p><img src="./imgs/redirect.png" alt="redirect"></p>
+<p>Now this looks like a normal <strong>301 Moved Permanently</strong> :</p>
+<pre tabindex="0"><code>&gt; GET / HTTP/1.1
+&gt; Host: academy.testing-domain.ch:8443
+&gt; User-Agent: curl/7.88.1
+&gt; Accept: */*
+&gt;
+&lt; HTTP/1.1 301
+&lt; Cache-Control: no-cache, no-store
+&lt; Connection: close
+&lt; Content-Type: text/html
+&lt; Location: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+&lt; Transfer-Encoding: chunked
+</code></pre><h2 id="redirector-configuration">Redirector configuration</h2>
+<p>Firstly, we&rsquo;ll configure Caddy as our reverse proxy, here&rsquo;s an example configuration that provides automatic SSL with wildcard support, IP and user-agent denylist and our reverse proxy.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#75715e">*.{{</span> <span style="color:#ae81ff">domain }}:443 {</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ae81ff">import ./filters/tls.caddy</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ae81ff">encode gzip</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ae81ff">header {</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#ae81ff">import ./filters/headers_standard.caddy</span>
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#ae81ff">handle {</span>
+</span></span><span style="display:flex;"><span>    @<span style="color:#ae81ff">ip_denylist {</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#ae81ff">import ./filters/bad_ips.caddy</span>
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    @<span style="color:#ae81ff">ua_denylist {</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#ae81ff">import ./filters/bad_ua.caddy</span>
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ae81ff">route @ip_denylist {</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#ae81ff">file_server {</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#ae81ff">root /var/www/html/{{ domain }}</span>
+</span></span><span style="display:flex;"><span>      }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ae81ff">route @ua_denylist {</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#ae81ff">file_server {</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#ae81ff">root /var/www/html/{{ domain }}</span>
+</span></span><span style="display:flex;"><span>      }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ae81ff">handle {</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#ae81ff">reverse_proxy https://localhost:8000  {</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#ae81ff">header_up Host {http.request.hostport}</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#ae81ff">transport http {</span>
+</span></span><span style="display:flex;"><span>          <span style="color:#ae81ff">tls_server_name {http.request.hostport}</span> <span style="color:#75715e"># for SNI</span>
+</span></span><span style="display:flex;"><span>          <span style="color:#ae81ff">tls_trust_pool file /opt/caddy/ca.crt</span>
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>      }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>{{ <span style="color:#ae81ff">domain }}:443 {</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ae81ff">import ./filters/tls.caddy</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ae81ff">encode gzip</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#ae81ff">header {</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#ae81ff">import ./filters/headers_standard.caddy</span>
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#ae81ff">file_server {</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#ae81ff">root /var/www/html/{{ domain }}</span>
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h4 id="reverse-proxy">Reverse proxy</h4>
+<p>We need to add a few statements to the <em>reverse_proxy</em> option.</p>
+<blockquote>
+<p><strong>tls_server_name</strong> sets the server name used when verifying the certificate received in the TLS handshake. By default, this will use the upstream address&rsquo; host part. <p>
+You only need to override this if your upstream address does not match the certificate the upstream is likely to use. For example, if the upstream address is an IP address, then you would need to configure this to the hostname being served by the upstream server.<p>
+A request placeholder may be used, in which case a clone of the HTTP transport config will be used on every request, which may incur a performance penalty.*</p></blockquote>
+<p>If we don&rsquo;t set the <em>SNI</em> with <code>tls_server_name</code> and send a request with <code>curl https://academy.testing-domain.ch</code>, Evilginx2 receives the request like so:</p>
+<pre tabindex="0"><code>[dbg] Got connection
+[dbg] SNI: localhost
+[dbg] fn_IsActiveHostname: Hostname: localhost
+[dbg] fn_IsActiveHostname: Hostname: [academy.testing-domain.ch]
+[dbg] TLS hostname unsupported: localhost
+</code></pre><p>With the <code>tls_server_name</code>configured, the hostname is correctly determined by Evilginx2.</p>
+<pre tabindex="0"><code>[dbg] Got connection
+[dbg] SNI: academy.testing-domain.ch
+[dbg] fn_IsActiveHostname: Hostname: academy.testing-domain.ch
+[dbg] fn_IsActiveHostname: Hostname: [academy.testing-domain.ch]
+[dbg] Fetching TLS certificate for academy.breakdev.org:443 ...
+[dbg] isWhitelistIP: 127.0.0.1-example
+</code></pre><p>The host is parsed using <code>vhost.TLS(c)</code> from the <em><a href="https://github.com/inconshreveable/go-vhost">https://github.com/inconshreveable/go-vhost</a></em> library.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#a6e22e">tlsConn</span>, <span style="color:#a6e22e">err</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">vhost</span>.<span style="color:#a6e22e">TLS</span>(<span style="color:#a6e22e">c</span>)
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span> <span style="color:#a6e22e">err</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+</span></span><span style="display:flex;"><span>  <span style="color:#a6e22e">log</span>.<span style="color:#a6e22e">Debug</span>(<span style="color:#e6db74">&#34;TLS conn failed&#34;</span>)
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span>
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">log</span>.<span style="color:#a6e22e">Debug</span>(<span style="color:#e6db74">&#34;SNI: %s&#34;</span>, <span style="color:#a6e22e">tlsConn</span>.<span style="color:#a6e22e">Host</span>())
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">hostname</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">tlsConn</span>.<span style="color:#a6e22e">Host</span>()
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span> <span style="color:#a6e22e">hostname</span> <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;&#34;</span> {
+</span></span><span style="display:flex;"><span>  <span style="color:#a6e22e">log</span>.<span style="color:#a6e22e">Debug</span>(<span style="color:#e6db74">&#34;TLS hostname is empty&#34;</span>)
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span>
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span> !<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">cfg</span>.<span style="color:#a6e22e">IsActiveHostname</span>(<span style="color:#a6e22e">hostname</span>) {
+</span></span><span style="display:flex;"><span>  <span style="color:#a6e22e">log</span>.<span style="color:#a6e22e">Debug</span>(<span style="color:#e6db74">&#34;TLS hostname unsupported: %s&#34;</span>, <span style="color:#a6e22e">hostname</span>)
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span>
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>Changing the code to attempt to extract the host header from the HTTP connection seems to return the raw SSL data. I didn&rsquo;t spend much time looking into it.
+<code>Not a valid http connection!: malformed HTTP request &quot;\x16\x03\x01\x05\xdc\x01\x00\x05\xd8\x03\x03FĘ\x02#\xab\0&quot;</code>.</p>
+<p>Some of you probably noticed the <code>reverse_proxy https://localhost:8000</code>, forwarding requests to localhost ? We are using SSH port forwarding to &ldquo;smuggle&rdquo; our HTTPS traffic through the Internet towards our Evilginx server. Nothing new here, you could do the same when tunneling C2 traffic.</p>
+<p>We can use the excellent <em>autossh</em> tool to create our ssh tunnel, forwarding our local port 8000 to the remote port 8443. Some SSH options with <code>-o</code> are used here, as the <a href="https://linux.die.net/man/1/autossh">documentation</a> suggests.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#f92672">[</span>Unit<span style="color:#f92672">]</span>
+</span></span><span style="display:flex;"><span>Description<span style="color:#f92672">=</span>Forwarding localhost:8000 to remote localhost:8443
+</span></span><span style="display:flex;"><span>After<span style="color:#f92672">=</span>network-online.target
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">[</span>Service<span style="color:#f92672">]</span>
+</span></span><span style="display:flex;"><span>Type<span style="color:#f92672">=</span>simple
+</span></span><span style="display:flex;"><span>User<span style="color:#f92672">=</span>root
+</span></span><span style="display:flex;"><span>Environment<span style="color:#f92672">=</span>PATH<span style="color:#f92672">=</span>/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+</span></span><span style="display:flex;"><span>ExecStart<span style="color:#f92672">=</span>autossh -M <span style="color:#ae81ff">0</span> -NC -o <span style="color:#e6db74">&#34;ExitOnForwardFailure=yes&#34;</span> -o <span style="color:#e6db74">&#34;ServerAliveInterval=10&#34;</span> -o <span style="color:#e6db74">&#34;ServerAliveCountMax=3&#34;</span> -o <span style="color:#e6db74">&#34;StrictHostKeyChecking=accept-new&#34;</span> -L 127.0.0.1:8000:127.0.0.1:8443 -i ~/.ssh/evilginx2-user evilginx2@<span style="color:#f92672">{{</span> evilginx_ip <span style="color:#f92672">}}</span>
+</span></span><span style="display:flex;"><span>Restart<span style="color:#f92672">=</span>always
+</span></span><span style="display:flex;"><span>RestartSec<span style="color:#f92672">=</span><span style="color:#ae81ff">5</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">[</span>Install<span style="color:#f92672">]</span>
+</span></span><span style="display:flex;"><span>WantedBy<span style="color:#f92672">=</span>multi-user.target
+</span></span></code></pre></div><p>Here are the Ansible tasks to configure this port forward :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Create evilginx2&#39;s ssh keys</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">openssh_keypair</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">path</span>: <span style="color:#ae81ff">~/.ssh/evilginx2-user</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">comment</span>: <span style="color:#e6db74">&#34;evilginx2-user&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">type</span>: <span style="color:#ae81ff">ecdsa</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">size</span>: <span style="color:#ae81ff">384</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">state</span>: <span style="color:#ae81ff">present</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">register</span>: <span style="color:#ae81ff">sshkeys</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Update evilginx host authorized_keys</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">delegate_to</span>: <span style="color:#e6db74">&#34;{{ groups[&#39;evilginx&#39;][0] }}&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">authorized_key</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">state</span>: <span style="color:#ae81ff">present </span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">user</span>: <span style="color:#ae81ff">evilginx2</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">key</span>: <span style="color:#e6db74">&#34;{{ sshkeys.public_key }}&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Upload autossh &#34;https&#34; service</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">template</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">src</span>: <span style="color:#ae81ff">../files/tunnels/autossh_https_service.j2</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">dest</span>: <span style="color:#ae81ff">/etc/systemd/system/autossh_https.service</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">owner</span>: <span style="color:#ae81ff">root</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">group</span>: <span style="color:#ae81ff">root</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">mode</span>: <span style="color:#e6db74">&#39;0644&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Start autossh &#34;https&#34; service</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">ansible.builtin.systemd_service</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">name</span>: <span style="color:#ae81ff">autossh_https</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">state</span>: <span style="color:#ae81ff">restarted</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">enabled</span>: <span style="color:#66d9ef">true</span>
+</span></span></code></pre></div><p>Since this task will run from the redirector role, we need to use <em>delegate_to</em> to target the evilginx host for the <em>Update evilginx host authorized_keys</em> task.</p>
+<blockquote>
+<p><strong>trust_pool</strong> configures the source of certificate authorities (CA) providing certificates against which to validate client certificates.*</p></blockquote>
+<p>We also need to set the <code>trust_pool</code> as we generate our own custom certificates (in the <strong>Evilginx2</strong> chapter) and need to tell Caddy to trust the certs it&rsquo;s going to see when proxying requests.</p>
+<p>Here&rsquo;s part of the Ansible task that uploads the configuration file, and copies the CA cert generated on the evilginx host :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Upload Caddyfile</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">template</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">src</span>: <span style="color:#ae81ff">../files/caddy/Caddyfile.j2</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">dest</span>: <span style="color:#ae81ff">/opt/caddy/Caddyfile</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">owner</span>: <span style="color:#ae81ff">caddy</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">group</span>: <span style="color:#ae81ff">caddy</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">mode</span>: <span style="color:#e6db74">&#39;0644&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Copy CA cert from evilginx</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">delegate_to</span>: <span style="color:#e6db74">&#34;{{ groups[&#39;evilginx&#39;][0] }}&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">ansible.builtin.slurp</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">src</span>: <span style="color:#e6db74">&#34;/root/certs/ca.crt&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">register</span>: <span style="color:#ae81ff">ca_cert</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Push CA cert to redirector</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">ansible.builtin.copy</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">content</span>: <span style="color:#e6db74">&#34;{{ ca_cert.content | b64decode }}&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">dest</span>: <span style="color:#e6db74">&#34;/opt/caddy/{{ ca_cert.source | basename }}&#34;</span>
+</span></span></code></pre></div><h3 id="fake-website">Fake website</h3>
+<p>We want to redirect unauthenticated, unwanted and overall bad IPs or user-agents that want our phishing engagements to fail to a fake website.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yml" data-lang="yml"><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Create webroot directory</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">ansible.builtin.file</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">path</span>: <span style="color:#ae81ff">/var/www/html/{{ domain }}</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">state</span>: <span style="color:#ae81ff">directory</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">owner</span>: <span style="color:#ae81ff">caddy</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">group</span>: <span style="color:#ae81ff">caddy</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">mode</span>: <span style="color:#e6db74">&#39;0744&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Archive the content of the template website</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">delegate_to</span>: <span style="color:#ae81ff">localhost</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">ansible.builtin.archive</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">path</span>: <span style="color:#e6db74">&#34;{{ role_path }}/files/template_website/{{ website }}/*&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">dest</span>: <span style="color:#e6db74">&#34;{{ role_path }}/files/template_website/{{ website }}.tar.gz&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Unarchive template website onto remote host</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">ansible.builtin.unarchive</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">src</span>: <span style="color:#e6db74">&#34;{{ role_path }}/files/template_website/{{ website }}.tar.gz&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">dest</span>: <span style="color:#ae81ff">/var/www/html/{{ domain }}</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">owner</span>: <span style="color:#ae81ff">caddy</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">group</span>: <span style="color:#ae81ff">caddy</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Remove local website template archive</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">delegate_to</span>: <span style="color:#ae81ff">localhost</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">file</span>: 
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">path</span>: <span style="color:#e6db74">&#34;../files/template_website/{{ website }}.tar.gz&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">state</span>: <span style="color:#ae81ff">absent</span>
+</span></span></code></pre></div><p>Archiving the entire directory before upload is necessary, otherwise it takes Ansible too long to copy all the files.</p>
+<h2 id="gophish-configuration">Gophish configuration</h2>
+<p>I&rsquo;m going to make changes to the previous configuration for the Gophish and Postfix instances.</p>
+<h4 id="docker-compose-1">Docker Compose</h4>
+<p>We&rsquo;ll have to modify the docker compose file from the Evilginx2 setup to include the Gophish container.</p>
+<p>The network is hardcoded to be <em>172.18.0.0/16</em> with the name <em>phishnetwork</em> and the host file of both containers is configured to resolve <em>host.docker.internal</em> to <em>172.18.0.1</em>. We&rsquo;ll see why later.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">evilginx2</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">my_evilginx2</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">registry.digitalocean.com/my-registry/my-evilginx2</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">/opt/evilginx2/phishlets:/volume/phishlets</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">/opt/evilginx2/redirectors:/volume/redirectors</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">/opt/evilginx2/config:/root/.evilginx/</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;127.0.0.1:8443:8443&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">phishnetwork</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">extra_hosts</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;host.docker.internal:172.18.0.1&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">command</span>: [<span style="color:#e6db74">&#34;sleep&#34;</span>, <span style="color:#e6db74">&#34;infinity&#34;</span>]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">gophish</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">my_gophish</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">registry.digitalocean.com/my-registry/my-gophish</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;127.0.0.1:8083:3333&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">phishnetwork</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">extra_hosts</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;host.docker.internal:172.18.0.1&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">networks</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">phishnetwork</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">driver</span>: <span style="color:#e6db74">&#34;bridge&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">driver_opts</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">com.docker.network.bridge.name</span>: <span style="color:#ae81ff">phishnetwork</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ipam</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">config</span>:
+</span></span><span style="display:flex;"><span>        - <span style="color:#f92672">subnet</span>: <span style="color:#ae81ff">172.18.0.0</span><span style="color:#ae81ff">/16</span>
+</span></span><span style="display:flex;"><span>          <span style="color:#f92672">gateway</span>: <span style="color:#ae81ff">172.18.0.1</span>
+</span></span></code></pre></div><p>This network also allows us to use container names to resolve while inside the network, making evilginx communicate with gophish much easier to configure.</p>
+<p>Next, we&rsquo;ll setup another SMTP ssh tunnel like the HTTP one earlier that listens on localhost:25.</p>
+<p>Now we need to tell <code>iptables</code> to allow the gophish container to talk to this forwarded port.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Add DNAT rule for phishnetwork (docker -&gt; localhost tunnel)</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">ansible.builtin.command</span>: &gt;<span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    iptables -t nat -A PREROUTING -i phishnetwork -p tcp --dport 25 -j DNAT --to-destination 127.0.0.1:25</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Allowing traffic from phishnetwork to localhost</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">ansible.builtin.command</span>: &gt;<span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    iptables -A INPUT -p tcp --dport 25 -i phishnetwork -j ACCEPT</span>
+</span></span></code></pre></div><p>Finally, have to tell the kernel to allow prerouting from an internal address <em>172.18.0.1 (the docker phishnetwork)</em> towards localhost by setting <code>net.ipv4.conf.phishnetwork.route_localnet=1</code>. We can be fancy and add a conf file to the <em>sysctl.d</em> directory and reload the <code>sysctl</code> settings.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Enable sysctl route_localnet for phishnetwork</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">copy</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">dest</span>: <span style="color:#ae81ff">/etc/sysctl.d/enable_docker_to_localhost.conf</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">content</span>: |<span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">      net.ipv4.conf.phishnetwork.route_localnet=1</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">owner</span>: <span style="color:#ae81ff">root</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">group</span>: <span style="color:#ae81ff">root</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">mode</span>: <span style="color:#e6db74">&#39;0644&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Reload sysctl settings</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">command</span>: <span style="color:#ae81ff">sysctl --system</span>
+</span></span></code></pre></div><p>This network configuration allows the gophish docker container to talk to the localhost port that redirects traffic towards the postfix server listening on the redirector server.</p>
+<p>Using gophish this way allows us to send phishing emails using it&rsquo;s easy-to-use interface, and if we use the <a href="https://github.com/kgretzky/gophish">Gophish</a> fork from <strong>kgretzky</strong>, we can even get statistics back from evilginx (email open, clicked link, submitted data).</p>
+<p>The admin interface on Gopish is accessible by running a local port forward with ssh like so : <code>ssh root@&lt;ip&gt; -L 8083:localhost:8083</code></p>
+<h2 id="postfix-configuration">Postfix configuration</h2>
+<p>Postfix will be configured to support client TLS <em>(with STARTTLS)</em>, a catchall blackhole email address to prevent replies to our phishing emails from generating bounces that inform the user of the phishing attempt and finally generate DKIM keys and configure them automatically on DigitalOcean for an 10/10 mail score.</p>
+<p>I&rsquo;ve forked <a href="https://github.com/catatnight/docker-postfix">https://github.com/catatnight/docker-postfix</a> to add these additional features and pushed the image to <a href="https://hub.docker.com/r/fudgedotdotdot/postfix">DockerHub</a>. You can check out the modifications <a href="https://github.com/Fudgedotdotdot/docker-postfix/blob/e6b8da74f5d42f4c4c7cc8a6e4f769df6b22174a/assets/install.sh">here</a>.</p>
+<ul>
+<li>If <code>use_tls</code> is set to <code>1</code>, postfix will attempt a TLS connection when sending email</li>
+<li>If <code>blackhole</code> is set to <code>1</code>, a blackhole account that receives email for any user and discards it will be created.</li>
+</ul>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">services</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">postfix</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">container_name</span>: <span style="color:#ae81ff">postfix_latest</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">image</span>: <span style="color:#ae81ff">fudgedotdotdot/postfix</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">restart</span>: <span style="color:#ae81ff">always</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">environment</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">maildomain={{ domain }}</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">smtp_user=user:password</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">use_tls=1 </span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">blackhole=1</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#e6db74">&#34;0.0.0.0:25:25&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">volumes</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">/opt/postfix/domainkeys:/etc/opendkim/domainkeys</span>
+</span></span></code></pre></div><p>These final Ansible tasks will generate DKIM keys, parse them and add them to DigitalOcean&rsquo;s DNS.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Generate DKIM keys</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">ansible.builtin.command</span>: <span style="color:#e6db74">&#34;opendkim-genkey -b 2048 -h rsa-sha256 -r --subdomains -s {{ dkim_selector }} -d {{ domain }}&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">args</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">chdir</span>: <span style="color:#ae81ff">/opt/postfix/domainkeys</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Ensure root only permissions on DKIM private key</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">ansible.builtin.file</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">path</span>: <span style="color:#ae81ff">/opt/postfix/domainkeys/{{ dkim_selector }}.private</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">owner</span>: <span style="color:#ae81ff">root</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">group</span>: <span style="color:#ae81ff">root</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">mode</span>: <span style="color:#e6db74">&#39;0600&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Read DKIM public key file</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">ansible.builtin.shell</span>: &gt;<span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    perl -0777 -ne &#39;print &#34;$1\n&#34; if /\((.*?)\)/s&#39; /opt/postfix/domainkeys/{{ dkim_selector }}.txt | perl -pe &#39;s/[&#34;\s]+//g&#39; | perl -pe &#39;s/(h|s)=.*?;//g&#39;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">register</span>: <span style="color:#ae81ff">dkim_public</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Adding DKIM public key to DigitalOcean</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">ansible.builtin.uri</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">url</span>: <span style="color:#e6db74">&#34;https://api.digitalocean.com/v2/domains/{{ domain }}/records&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">method</span>: <span style="color:#ae81ff">POST</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">headers</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">Authorization</span>: <span style="color:#e6db74">&#34;Bearer {{ lookup(&#39;env&#39;, &#39;DIGITALOCEAN_TOKEN&#39;) }}&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">Content-Type</span>: <span style="color:#e6db74">&#34;application/json&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">body_format</span>: <span style="color:#ae81ff">json</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">body</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">type</span>: <span style="color:#ae81ff">TXT</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">name</span>: <span style="color:#e6db74">&#34;{{ dkim_selector }}._domainkey&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">data</span>: <span style="color:#e6db74">&#34;{{ dkim_public.stdout }}&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">ttl</span>: <span style="color:#ae81ff">1800</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">weight</span>: <span style="color:#66d9ef">null</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">flags</span>: <span style="color:#66d9ef">null</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">tag</span>: <span style="color:#66d9ef">null</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">status_code</span>: <span style="color:#ae81ff">201</span>
+</span></span></code></pre></div><h2 id="email-and-network-analysis">Email and network analysis</h2>
+<p>To confirm that we correctly configured DKIM, we can send an email to <a href="https://mail-tester.com">mail-tester.com</a> and get this encouraging message:</p>
+<p style="text-align: center;">
+<img src="./email_score.png">
+</p>
+<p>We can also see that the email headers confirm that our SPF, DMARC and DKIM records are fonctionnal.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">Authentication-Results</span>: <span style="color:#ae81ff">mail.protonmail.ch; dkim=pass (Good 2048 bit rsa-sha256 signature) header.d=mydomain.com header.a=rsa-sha256</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">Authentication-Results</span>: <span style="color:#ae81ff">mail.protonmail.ch; dmarc=pass (p=none dis=none) header.from=mydomain.com</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">Authentication-Results</span>: <span style="color:#ae81ff">mail.protonmail.ch; spf=pass smtp.mailfrom=mydomain.com</span>
+</span></span></code></pre></div><p>For the TLS configuration, running a network capture shows the difference between cleartext and encrypted email :</p>
+<div style="display: flex; justify-content: center; margin-top: 20px;">
+  <table>
+    <tr>
+      <td style="text-align: center;"><strong>TLS</strong></td>
+      <td style="text-align: center;"><strong>Non-TLS</strong></td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">
+        <img src="./email_tls_wireshark.png" alt="TLS Email" width="400">
+      </td>
+      <td style="text-align: center;">
+        <img src="./email_notls_wireshark.png" alt="Non-TLS Email" width="400">
+      </td>
+    </tr>
+  </table>
+</div>
+<h2 id="improvements">Improvements</h2>
+<p>The main limitation of this setup is the lack of a fully-fledged mail server. We only have a MTA (Postfix) and no way of connecting a mail client to it. For this we would need a MDA (Mail Delivery Agent) like Dovecot.</p>
+<p>The <strong>docker-mailserver</strong> here <a href="https://github.com/docker-mailserver/docker-mailserver">https://github.com/docker-mailserver/docker-mailserver</a> is a all-in-one dockerized mail server. This project should remplace our simple postfix to allow for more involved phishing campaigns, like answering emails from users or sending emails manually first and then including a phishing link in the conversation later on.</p>
+<hr>
+<p>Thanks for reading,<br>
+Fudge&hellip;</p>
+    </div>
+</div>
+
+            </main>
+        </div>
+
+
+        <footer class="footer">
+    
+        <span>Built with <a href="https://gohugo.io" class="footerLink">Hugo</a> and custom <a href="https://github.com/LordMathis/hugo-theme-nightfall" class="footerLink">Nightfall</a> theme</span>
+    
+</footer>
+    </div>
+
+</body>
+
+</html>

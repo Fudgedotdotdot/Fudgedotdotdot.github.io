@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+    <title>
+
+The state of sandbox evasion techniques in 2024 | Fudgedotdotdot&#39;s blog
+</title>
+
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="">
+
+<meta name="generator" content="Hugo 0.147.8">
+
+
+<link rel="canonical" href="/posts/sandbox-evasion-in-2024/" >
+
+
+
+
+<link href="/css/style.min.b09aa93f26d8e41172a027454356b2b8398e094069be17f6c0a0e3e7d53c8564.css" rel="stylesheet">
+
+
+
+
+</head>
+
+<body>
+
+    <div class="flexWrapper">
+        <header class="headerWrapper">
+    <div class="header">
+        <div>
+            <a class="terminal" href="/">
+                <span>fudge@penbox.com ~ $</span>
+            </a>
+        </div>
+        <input class="side-menu" type="checkbox" id="side-menu">
+        <label class="hamb" for="side-menu"><span class="hamb-line"></span></label>
+        <nav class="headerLinks">
+            <ul>
+                
+                <li>
+                    <a href="/about" title="" >
+                        ~/about</a>
+                </li>
+                
+                <li>
+                    <a href="/posts" title="" >
+                        ~/blog</a>
+                </li>
+                
+            </ul>
+        </nav>
+    </div>
+</header>
+
+
+        <div class="content">
+            <main class="main">
+                
+<div class="postWrapper">
+    <h1>The state of sandbox evasion techniques in 2024</h1>
+    
+    
+    <section class="postMetadata">
+        <dl>
+            
+            
+            
+                
+<dt>categories</dt>
+<dd><span></span>
+    <a href="/categories/sandbox-evasion/">Sandbox Evasion</a></dd>
+            
+            
+                <dt>published</dt>
+                
+                <dd><time datetime="2024-09-02">September 2, 2024</time></dd>
+            
+            
+        </dl>
+    </section>
+    
+    <div>
+        <p>This post is  about sandbox evasion techniques and their usefulness in more targeted engagements.</p>
+<h1 id="the-state-of-sandbox-evasion-techniques-in-2024">The state of sandbox evasion techniques in 2024</h1>
+<p>This post is  about sandbox evasion techniques and their usefulness in more targeted engagements.</p>
+<p>There&rsquo;s a lot of sandbox evasion techniques, some are simple: query WMI, some are cool: parsing SMBIOS tables, most try to detect sandbox artifacts.  I wanted to know if these techniques are still effective for detecting sandboxes, or if the sandboxes have since been updated to counter them.</p>
+<h2 id="initial-enumeration">Initial enumeration</h2>
+<p>I selected these four sandboxes for my tests :</p>
+<ul>
+<li><a href="https://www.virustotal.com/gui/">VirusTotal</a></li>
+<li><a href="https://www.hybrid-analysis.com/">Hybrid-Analysis</a></li>
+<li><a href="https://tria.ge/">RecordedFuture Triage</a></li>
+<li><a href="https://www.filescan.io/scan">OWASP MetaDefender Sandbox</a></li>
+</ul>
+<p>There were quite a lot more public sandbox services [1] around 2016. But these were the ones I found still active. I also used random URL scanning services after reading this <a href="https://x.com/0gtweet/status/1797484704196665626">tweet</a> from Grzegorz Tworek.</p>
+<p>[1] <em>On Fingerprinting of Public Malware Analysis
+Services</em></p>
+<p>[1] <a href="https://www.christian-rossow.de/publications/sandprint-raid2016.pdf">https://www.christian-rossow.de/publications/sandprint-raid2016.pdf</a></p>
+<p>[1] <em>Your Sandbox is Blinded:
+Impact of Decoy Injection to Public Malware Analysis
+Systems</em></p>
+<p>To perform a quick and dirty enumeration of these sandboxes, I wrote a quick python script to get information about the running processes, installed software and BIOS information (through the registry). All information was going to be sent through HTTP POST requests, as they seemed to be allowed through the sandboxes firewalls. The server that received the results was a simple Flask webserver.</p>
+<p>The BIOS information did not hold any value in determining if the machine was a sandbox.</p>
+<p>List of software installed (from the registry) :</p>
+<table>
+    <tr>
+        <td style="border: 0;"><img src="results-hkcu.png"></td>
+        <td style="border: 0;"><img src="results-hklm.png"></td>
+    </tr>
+</table>
+<p>When listing the directories in the <em>Program Files</em> and <em>Program Files (x86)</em>, about 10 sandboxes had weird directories :</p>
+<p><img src="results-programs.png" alt="results-installed"></p>
+<p>When listing processes, these are the users that are running software on the machine (including our process). They account for about 33/120ish of sandboxes where the payload was executed.</p>
+<ul>
+<li>WIN-5E07COS9ALR\Abby</li>
+<li>WASP\Janet Van Dyne</li>
+<li>DESKTOP-B0T93D6\george</li>
+<li>JOHN-PC\John</li>
+<li>BUXF-O02J2Q\admin</li>
+</ul>
+<p>There were also a lot of sandboxes that were using this sort of pattern for their users:</p>
+<ul>
+<li>DESKTOP-BJNL7RX\vbxKIs2</li>
+<li>DESKTOP-QSVLYYY\dqUyPd5N</li>
+<li>DESKTOP-BYNIGKA\YnYVSXW5Vh5</li>
+<li>DESKTOP-5HLCS0T\Lv3mvD7Wv6L</li>
+<li>DESKTOP-0SWEU7Q\AUlDa</li>
+</ul>
+<p>The length of the username varied in length, but the machine is always 7 characters long.</p>
+<p>Finally, here are the countries that called-back sorted by sandbox. The <em>GENERIC</em> one is from <em>OWASP MetaDefender Sandbox</em> and other random URL scanning services I could find.</p>
+<table>
+    <tr>
+        <td style="border: 0;"><img src="map-sandboxes-generic.png"></td>
+        <td style="border: 0;"><img src="map-sandboxes-virustotal.png"></td>
+    </tr>
+    <tr>
+        <td style="border: 0;"><img src="map-sandboxes-hybridanalysis.png"></td>
+        <td style="border: 0;"><img src="map-sandboxes-recordedfuturtriage.png"></td>
+    </tr>
+</table>
+<p>Let&rsquo;s see how evasion techniques fair against these sandboxes.</p>
+<h2 id="evasion-techniques">Evasion techniques</h2>
+<p>To help in testing sandbox evasion techniques, I relied on the two following projects :</p>
+<ul>
+<li><a href="https://github.com/LordNoteworthy/al-khaser">Al-Khaser</a></li>
+<li><a href="https://github.com/a0rtega/pafish">Pafish</a></li>
+</ul>
+<p>Both tools were modified to send an HTTP request containing the text that is normally printed to the console. The HTTP server was the same Flask application from the exfiltration section but with one caveat, I could not figure out how to use a global variable in C/C++ to use as unique ID (stackoverflow answers were simply :  <em>read in a condescending tone: &ldquo;you shouldn&rsquo;t use global variables, here&rsquo;s the better way&rdquo;</em>), so I used the source IP as a unique identifier and appending to the log file if the IP was already seen.</p>
+<p>A week after uploading the files to the sandboxes, the results were the following :</p>
+<ul>
+<li>32 unique IPs for <em>Al-Khaser</em></li>
+<li>43 unique IPs for <em>Pafish</em></li>
+</ul>
+<h3 id="al-khaser-results">Al-Khaser results</h3>
+<p><em>Al-Khaser</em> detects multiple sandboxes using the <em>Local Descriptor Table Location</em> technique, which, quoted directly from the source:</p>
+<blockquote>
+<p><em>This trick  involves looking at pointers to critical operating system tables
+that are typically relocated on a virtual machine. One such table is the
+Interrupt Descriptor Table (IDT), which tells the system where various operating
+system interrupt handlers are located in memory. On real machines, the IDT is
+located lower in memory than it is on guest (i.e., virtual) machines.</em><br><em>PS: Does not seem to work on newer version of VMWare Workstation (Tested on v12)</em></p></blockquote>
+<p>I&rsquo;m not sure if that means that the results are a false positive, but since it should not work on newer versions of VMWare Workstation, let’s ignore it.</p>
+<p>Both <em>Checking for Hyper-V global objects</em> and <em>Checking_SMBIOS_tables</em> techniques seem to be an effective method to detect sandboxes. Another advantage is they don&rsquo;t get flagged as anti-vm techniques by the sanboxes.</p>
+<p><img src="results-al-khaser.png" alt="al-khaser"></p>
+<p><em>The data was limited to techniques that detected at least 5 sandboxes</em></p>
+<p>The <em>NtYieldExecution</em> is a antidebugging technique that doesn&rsquo;t seem very reliable as it considers my machine to be a sandbox. The unreliability is also recognized in the source code :</p>
+<blockquote>
+<p><em>However, this is a hopelessly unreliable method for detecting a debugger because it will also detect the presence of a thread that is running with high priority</em></p></blockquote>
+<p>Most of the other successful detection techniques are based on WMI queries. However, interfacing with WMI is well known, and sandboxes consider these queries as malicious, making them pointless to use for sandbox evasion.</p>
+<p><img src="results-wmi.png" alt="results-wmi"></p>
+<h3 id="pafish-results">Pafish results</h3>
+<p>I ran two versions of <em>Pafish</em>, the first sent a generic log message, the second a more detailed one. I did this as the <em>virtualbox</em> detection was trigged multiple times on seven sandboxes that executed the payload, but didn&rsquo;t give me the exact detection technique.</p>
+<p><img src="resultsv1-pafish.png" alt="pafish1"></p>
+<p>This second iteration did not execute on as many sandboxes as the previous one. That&rsquo;s why there&rsquo;s less <em>virtualbox</em> detection techniques in the graph.</p>
+<p><img src="resultsv2-pafish.png" alt="pafish2"></p>
+<p>The <em>rdtsc</em> technique [2] is documented and well known by malware authors and sandbox authors alike. The technique is useful in detecting sandboxes, but at the same time creates a known malicious IOC.</p>
+<p>[2] <a href="https://anti-debug.checkpoint.com/techniques/timing.html">https://anti-debug.checkpoint.com/techniques/timing.html</a></p>
+<p>The next techniques in detection ability are linked to user interaction, either with mouse movement and clicks on message boxes. While these techniques are great and abuse the fact that sandbox users are not real users, mouse clicks should be avoided as they place a hook on mouse events which gets detected as <em>Sets a global windows hook to intercept mouse events</em>.</p>
+<p>The last technique is checking the uptime of the system. In this case, this is done with the <em>GetTickCount()</em> API call but can also be done by manually parsing the <em>KUSER_SHARED_DATA</em>, as shown in this blog [3] and documented by the VX-API project [3.1]</p>
+<p>[3] <a href="https://pentest.party/posts/2024/detecting-sandboxes-without-syscalls/">https://pentest.party/posts/2024/detecting-sandboxes-without-syscalls/</a></p>
+<p>[3.1] <a href="https://github.com/vxunderground/VX-API">https://github.com/vxunderground/VX-API</a></p>
+<p>The other techniques either use WMI, which we already discarded due to its detection rate, or don&rsquo;t have enough detection capabilities to realistically be used in malware (we don&rsquo;t want to have to chain multiple / a lot of different techniques together).</p>
+<h2 id="results-analysis">Results analysis</h2>
+<p>A lot of these techniques are well known by antivirus solutions, and even if they do detect sandboxes, the added scrutiny associated with our <em>totally legitimate program</em> being classified as malicious is not worth the tradeoff. Furthermore, even if the techniques that are not directly considered to be malicious, they don&rsquo;t detect every sandbox we encountered. Although some candidates can detect most sandboxes like <em>Local Descriptor Table Location</em> or <em>mouse mouvements</em>, couldn&rsquo;t we use something simpler and less known ?</p>
+<p>Sandboxes are, basically, a VM that runs arbitrary programs. We can try to detect which technology it&rsquo;s using, be it VMWARE, VirtualBox, Cuckoo or QEMU, or try to see if the sandbox is moving the mouse cursor, or find sandbox artifacts. At the end of the day, we&rsquo;re still attempting to detect a sandbox by the definition of what a sandbox is, a VM that runs arbitrary programs.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>In reality, our objective is to get our payload on a real machine, configured by a real IT department, with a real user contributing to shareholder value by trading their limited time for money. Sandboxes cannot capture this profound level of despair.</p>
+<p>We should detect what constitutes a real machine, not try to detect what a fake one looks like. Environment keying is how we can do this.</p>
+<p>I wrote a quick nim program to check Active Directory membership a few different ways [4], office productivity logs [5], and uploaded it to the sandboxes.</p>
+<p>[4] <a href="https://github.com/byt3bl33d3r/OffensiveNim/blob/master/src/sandbox_domain_check.nim">https://github.com/byt3bl33d3r/OffensiveNim/blob/master/src/sandbox_domain_check.nim</a></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-nim" data-lang="nim"><span style="display:flex;"><span><span style="color:#66d9ef">proc </span><span style="color:#a6e22e">IsAzureJoined2</span>(): <span style="color:#66d9ef">bool</span> <span style="color:#f92672">=</span> 
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">proc </span><span style="color:#a6e22e">DsrIsDeviceJoined</span>(
+</span></span><span style="display:flex;"><span>        isDomainJoined: <span style="color:#66d9ef">ptr</span> <span style="color:#66d9ef">BOOL</span>,
+</span></span><span style="display:flex;"><span>        isAADJoined: <span style="color:#66d9ef">ptr</span> <span style="color:#66d9ef">BOOL</span>
+</span></span><span style="display:flex;"><span>    ): HRESULT {.stdcall, dynlib: <span style="color:#e6db74">&#34;dsreg&#34;</span>, importc.}
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">var</span> domainJoined: <span style="color:#66d9ef">BOOL</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">var</span> aadJoined: <span style="color:#66d9ef">BOOL</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span> <span style="color:#75715e"># doesn&#39;t do anything?, the real return is in domainJoined</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">let</span> result <span style="color:#f92672">=</span> DsrIsDeviceJoined(<span style="color:#66d9ef">addr</span> domainJoined, <span style="color:#66d9ef">addr</span> aadJoined)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> result <span style="color:#f92672">==</span> S_OK:
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> domainJoined
+</span></span></code></pre></div><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-nim" data-lang="nim"><span style="display:flex;"><span><span style="color:#75715e"># From https://github.com/byt3bl33d3r/OffensiveNim/blob/master/src/ldap_query_bin.nim</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">proc </span><span style="color:#a6e22e">ADO_ADSI</span>(): <span style="color:#66d9ef">bool</span> <span style="color:#f92672">=</span> 
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">var</span> conn <span style="color:#f92672">=</span> CreateObject(<span style="color:#e6db74">&#34;ADODB.Connection&#34;</span>)
+</span></span><span style="display:flex;"><span>    conn.Provider <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;ADsDSOObject&#34;</span>
+</span></span><span style="display:flex;"><span>    conn.Open(<span style="color:#e6db74">&#34;Active Directory Provider&#34;</span>)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">var</span> sysinfo <span style="color:#f92672">=</span> CreateObject(<span style="color:#e6db74">&#34;ADSystemInfo&#34;</span>)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">try</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">let</span> dn <span style="color:#f92672">=</span> sysinfo.DomainDNSName
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">except</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">false</span>
+</span></span></code></pre></div><p>[5]</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-nim" data-lang="nim"><span style="display:flex;"><span><span style="color:#66d9ef">proc </span><span style="color:#a6e22e">file_outlooklogs</span>(): <span style="color:#66d9ef">int</span> <span style="color:#f92672">=</span> 
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">let</span> path <span style="color:#f92672">=</span> getHomeDir() <span style="color:#f92672">/</span> <span style="color:#e6db74">&#34;AppData&#34;</span> <span style="color:#f92672">/</span> <span style="color:#e6db74">&#34;Local&#34;</span> <span style="color:#f92672">/</span> <span style="color:#e6db74">&#34;Temp&#34;</span> <span style="color:#f92672">/</span> <span style="color:#e6db74">&#34;Outlook Logging&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">let</span> filesInPath <span style="color:#f92672">=</span> toSeq(walkDir(path)) 
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> filesInPath.len
+</span></span></code></pre></div><p>The results, albeit only 13, were immediately clear.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span>{<span style="color:#e6db74">&#34;domainjoined&#34;</span>:[{<span style="color:#e6db74">&#34;IsDomainJoined&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;ADO_ADSI&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;IsAzureJoined2&#34;</span>:<span style="color:#66d9ef">false</span>}],<span style="color:#e6db74">&#34;officeActivityLogs&#34;</span>:<span style="color:#ae81ff">0</span>}
+</span></span><span style="display:flex;"><span>{<span style="color:#e6db74">&#34;domainjoined&#34;</span>:[{<span style="color:#e6db74">&#34;IsDomainJoined&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;ADO_ADSI&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;IsAzureJoined2&#34;</span>:<span style="color:#66d9ef">false</span>}],<span style="color:#e6db74">&#34;officeActivityLogs&#34;</span>:<span style="color:#ae81ff">0</span>}
+</span></span><span style="display:flex;"><span>{<span style="color:#e6db74">&#34;domainjoined&#34;</span>:[{<span style="color:#e6db74">&#34;IsDomainJoined&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;ADO_ADSI&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;IsAzureJoined2&#34;</span>:<span style="color:#66d9ef">true</span>}],<span style="color:#e6db74">&#34;officeActivityLogs&#34;</span>:<span style="color:#ae81ff">271</span>} <span style="color:#ae81ff">&lt;-- That&#39;s my corporate laptop</span>
+</span></span><span style="display:flex;"><span>{<span style="color:#e6db74">&#34;domainjoined&#34;</span>:[{<span style="color:#e6db74">&#34;IsDomainJoined&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;ADO_ADSI&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;IsAzureJoined2&#34;</span>:<span style="color:#66d9ef">false</span>}],<span style="color:#e6db74">&#34;officeActivityLogs&#34;</span>:<span style="color:#ae81ff">0</span>,}
+</span></span><span style="display:flex;"><span>{<span style="color:#e6db74">&#34;domainjoined&#34;</span>:[{<span style="color:#e6db74">&#34;IsDomainJoined&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;ADO_ADSI&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;IsAzureJoined2&#34;</span>:<span style="color:#66d9ef">false</span>}],<span style="color:#e6db74">&#34;officeActivityLogs&#34;</span>:<span style="color:#ae81ff">0</span>,}
+</span></span><span style="display:flex;"><span>{<span style="color:#e6db74">&#34;domainjoined&#34;</span>:[{<span style="color:#e6db74">&#34;IsDomainJoined&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;ADO_ADSI&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;IsAzureJoined2&#34;</span>:<span style="color:#66d9ef">false</span>}],<span style="color:#e6db74">&#34;officeActivityLogs&#34;</span>:}
+</span></span><span style="display:flex;"><span>{<span style="color:#e6db74">&#34;domainjoined&#34;</span>:[{<span style="color:#e6db74">&#34;IsDomainJoined&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;ADO_ADSI&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;IsAzureJoined2&#34;</span>:<span style="color:#66d9ef">false</span>}],<span style="color:#e6db74">&#34;officeActivityLogs&#34;</span>:}
+</span></span><span style="display:flex;"><span>{<span style="color:#e6db74">&#34;domainjoined&#34;</span>:[{<span style="color:#e6db74">&#34;IsDomainJoined&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;ADO_ADSI&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;IsAzureJoined2&#34;</span>:<span style="color:#66d9ef">false</span>}],<span style="color:#e6db74">&#34;officeActivityLogs&#34;</span>:<span style="color:#ae81ff">1</span>}
+</span></span><span style="display:flex;"><span>{<span style="color:#e6db74">&#34;domainjoined&#34;</span>:[{<span style="color:#e6db74">&#34;IsDomainJoined&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;ADO_ADSI&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;IsAzureJoined2&#34;</span>:<span style="color:#66d9ef">false</span>}],<span style="color:#e6db74">&#34;officeActivityLogs&#34;</span>:<span style="color:#ae81ff">0</span>}
+</span></span><span style="display:flex;"><span>{<span style="color:#e6db74">&#34;domainjoined&#34;</span>:[{<span style="color:#e6db74">&#34;IsDomainJoined&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;ADO_ADSI&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;IsAzureJoined2&#34;</span>:<span style="color:#66d9ef">false</span>}],<span style="color:#e6db74">&#34;officeActivityLogs&#34;</span>:}
+</span></span><span style="display:flex;"><span>{<span style="color:#e6db74">&#34;domainjoined&#34;</span>:[{<span style="color:#e6db74">&#34;IsDomainJoined&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;ADO_ADSI&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;IsAzureJoined2&#34;</span>:<span style="color:#66d9ef">false</span>}],<span style="color:#e6db74">&#34;officeActivityLogs&#34;</span>:}
+</span></span><span style="display:flex;"><span>{<span style="color:#e6db74">&#34;domainjoined&#34;</span>:[{<span style="color:#e6db74">&#34;IsDomainJoined&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;ADO_ADSI&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;IsAzureJoined2&#34;</span>:<span style="color:#66d9ef">false</span>}],<span style="color:#e6db74">&#34;officeActivityLogs&#34;</span>:}
+</span></span><span style="display:flex;"><span>{<span style="color:#e6db74">&#34;domainjoined&#34;</span>:[{<span style="color:#e6db74">&#34;IsDomainJoined&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;ADO_ADSI&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;IsAzureJoined2&#34;</span>:<span style="color:#66d9ef">false</span>}],<span style="color:#e6db74">&#34;officeActivityLogs&#34;</span>:}
+</span></span><span style="display:flex;"><span>{<span style="color:#e6db74">&#34;domainjoined&#34;</span>:[{<span style="color:#e6db74">&#34;IsDomainJoined&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;ADO_ADSI&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;IsAzureJoined2&#34;</span>:<span style="color:#66d9ef">false</span>}],<span style="color:#e6db74">&#34;officeActivityLogs&#34;</span>:<span style="color:#ae81ff">2</span>}
+</span></span><span style="display:flex;"><span>{<span style="color:#e6db74">&#34;domainjoined&#34;</span>:[{<span style="color:#e6db74">&#34;IsDomainJoined&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;ADO_ADSI&#34;</span>:<span style="color:#66d9ef">false</span>},{<span style="color:#e6db74">&#34;IsAzureJoined2&#34;</span>:<span style="color:#66d9ef">false</span>}],<span style="color:#e6db74">&#34;officeActivityLogs&#34;</span>:<span style="color:#ae81ff">0</span>}
+</span></span></code></pre></div><p>None of these sandboxes were domain joined, or had any indication of Word, Excel or Powerpoint activity. They are not <em>real</em> corporate machines. Moreover, these sandboxes did not flag this code as <em>attempting to detect virtual environments, specific VMs or using anti-sandbox techniques</em>. (Apart from the detections for just being nim code).</p>
+<p>After uploading a bunch of files and getting free compute from these very nice sandbox vendors, it&rsquo;s apparent that while more complicated or interesting techniques might be required for malware that targets personal computers, using them for targeted engagements doesn&rsquo;t seem to add as much value.</p>
+<hr>
+<p>Thanks for reading,<br>
+Fudge&hellip;</p>
+    </div>
+</div>
+
+            </main>
+        </div>
+
+
+        <footer class="footer">
+    
+        <span>Built with <a href="https://gohugo.io" class="footerLink">Hugo</a> and custom <a href="https://github.com/LordMathis/hugo-theme-nightfall" class="footerLink">Nightfall</a> theme</span>
+    
+</footer>
+    </div>
+
+</body>
+
+</html>

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <title>
+Nim &#43; Zig = ❤️ | Fudgedotdotdot&#39;s blog
+</title>
+
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="">
+
+<meta name="generator" content="Hugo 0.147.8">
+
+
+<link rel="canonical" href="//localhost:1313/posts/nim_and_zig_heart/nim_and_zig/" >
+
+
+
+
+<link href="/css/style.min.5c1fa9bba2d0e854fe30b3d6316ab0114a2a5f25c9a98275badeadb66f2ec725.css" rel="stylesheet">
+
+
+
+
+</head>
+
+<body>
+
+    <div class="flexWrapper">
+        <header class="headerWrapper">
+    <div class="header">
+        <div>
+            <a class="terminal" href="//localhost:1313/">
+                <span>fudge@penbox.com ~ $</span>
+            </a>
+        </div>
+        <input class="side-menu" type="checkbox" id="side-menu">
+        <label class="hamb" for="side-menu"><span class="hamb-line"></span></label>
+        <nav class="headerLinks">
+            <ul>
+                
+                <li>
+                    <a href="//localhost:1313/about" title="" >
+                        ~/about</a>
+                </li>
+                
+                <li>
+                    <a href="//localhost:1313/posts" title="" >
+                        ~/blog</a>
+                </li>
+                
+            </ul>
+        </nav>
+    </div>
+</header>
+
+
+        <div class="content">
+            <main class="main">
+                
+<div class="postWrapper">
+    <h1>Nim &#43; Zig = ❤️</h1>
+    
+    
+    <section class="postMetadata">
+        <dl>
+            
+            
+            
+                
+<dt>categories</dt>
+<dd><span></span>
+    <a href="/categories/nim/">Nim</a></dd>
+            
+            
+                <dt>published</dt>
+                
+                <dd><time datetime="2025-03-17">March 17, 2025</time></dd>
+            
+            
+        </dl>
+    </section>
+    
+    <div>
+        <p>Using Zig to compile Nim code, avoiding static malware detections.</p>
+<p>I like Nim, it allows me to build C like programs without having to suffer through learning C. It&rsquo;s fun to write in, has python like syntax, great FFI and an even better Windows library called <a href="https://github.com/khchen/winim">Winim</a>.</p>
+<p>Plus, cool people have already written stuff in nim :</p>
+<ul>
+<li><a href="https://github.com/byt3bl33d3r/OffensiveNim">https://github.com/byt3bl33d3r/OffensiveNim</a></li>
+<li><a href="https://github.com/chvancooten/NimPlant">https://github.com/chvancooten/NimPlant</a></li>
+<li><a href="https://github.com/S3cur3Th1sSh1t/NimGetSyscallStub">https://github.com/S3cur3Th1sSh1t/NimGetSyscallStub</a></li>
+<li><a href="https://github.com/icyguider/Nimcrypt2">https://github.com/icyguider/Nimcrypt2</a></li>
+<li>and more</li>
+</ul>
+<h3 id="introduction">Introduction</h3>
+<p>A lot of malware has been written in Nim[1] (see list above) and this has caused some frustration on the Nim forums and Nim&rsquo;s github page [2][3][4] about anti-virus detecting normal programs developed in this language.</p>
+<p>[1] <a href="https://thehackernews.com/2023/12/decoy-microsoft-word-documents-used-to.html">Decoy Microsoft Word Documents Used to Deliver Nim-Based Malware</a>. <br>
+[2] <a href="https://forum.nim-lang.org/t/9850">Why I stopped programming in Nim</a><br>
+[3] <a href="https://forum.nim-lang.org/t/9388">Anti-virus at work prevents the use of Nim binaries</a><br>
+[4] <a href="https://github.com/nim-lang/Nim/issues/17820">Check Nim&rsquo;s binaries aren&rsquo;t Virus</a><br></p>
+<p>Having a legitimate Nim binary already flagged as malware is a bad start. It&rsquo;s especially an issue if we want to continue developping offensive tools with Nim.  <em>As if developing offensive tools hadn&rsquo;t created the issue we now want to avoid.</em></p>
+<h3 id="how-does-nims-compilation-process-work-">How does Nim&rsquo;s compilation process work ?</h3>
+<p>Nim generates C code that then gets compiled by the compiler installed on your system, <em>gcc</em>, <em>clang</em> or <em>x86_64-w64-mingw32-gcc</em>.</p>
+<p>The configuration file <em>nim.cfg</em> contains the logic to choose which compiler to use. [5]</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># Example from the config file</span>
+</span></span><span style="display:flex;"><span>@if unix and mingw:
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># Cross compile for Windows from Linux/OSX using MinGW</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">[</span>SNIP<span style="color:#f92672">]</span>
+</span></span><span style="display:flex;"><span>  amd64.windows.gcc.exe <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;x86_64-w64-mingw32-gcc&#34;</span>
+</span></span><span style="display:flex;"><span>  amd64.windows.gcc.linkerexe <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;x86_64-w64-mingw32-gcc&#34;</span>
+</span></span><span style="display:flex;"><span>  amd64.windows.gcc.cpp.exe <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;x86_64-w64-mingw32-g++&#34;</span>
+</span></span><span style="display:flex;"><span>  amd64.windows.gcc.cpp.linkerexe <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;x86_64-w64-mingw32-g++&#34;</span>
+</span></span></code></pre></div><p>You can also specify the compiler to use on the command line :</p>
+<p><code>nim c --cc:clang --clang.exe=&quot;x86_64-w64-mingw32-clang&quot; --clang.linkerexe=&quot;x86_64-w64-mingw32-clang&quot; --passc:&quot;stuff&quot; --passl:&quot;stuff&quot;</code></p>
+<p>[5] <a href="https://nim-lang.org/docs/nimc.html#compiler-selection">https://nim-lang.org/docs/nimc.html#compiler-selection</a></p>
+<p>By default, compiling on Windows or cross-compiling on Linux, the detection rates match what the Nim devs were complaining about.</p>
+<p>Simple program :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-nim" data-lang="nim"><span style="display:flex;"><span><span style="color:#f92672">import</span> winim
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> std<span style="color:#f92672">/</span>strformat
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">var</span>
+</span></span><span style="display:flex;"><span>    buffer <span style="color:#f92672">=</span> newMString(UNLEN <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>)
+</span></span><span style="display:flex;"><span>    cb <span style="color:#f92672">=</span> DWORD buffer.len
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>GetUserNameA(<span style="color:#f92672">&amp;</span>buffer, <span style="color:#f92672">&amp;</span>cb)
+</span></span><span style="display:flex;"><span>buffer.setLen(cb <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>)
+</span></span><span style="display:flex;"><span>MessageBox(<span style="color:#ae81ff">0</span>, <span style="color:#e6db74">fmt&#34;Hello {buffer} !&#34;</span>, <span style="color:#e6db74">&#34;Nim is Powerful&#34;</span>, <span style="color:#ae81ff">0</span>)
+</span></span></code></pre></div><p>Detections :</p>
+<table>
+    <tr>
+        <td style="border: 0;"><p>Compiling on Windows</p><img src="hello-windows-nim.png"></td>
+        <td style="border: 0;"><p>Cross-Compiling on Linux</p><img src="hello-linux-nim.png"></td>
+    </tr>
+</table>
+<p>I was therefore curious if using a non-default compiler reduced anti-virus detections so I could keep using Nim for all my <em>perfectly legitimate</em> projects.</p>
+<h3 id="where-does-zig-come-in-">Where does Zig come in ?</h3>
+<p>Since we can use whatever compiler we want from Nim, I thought we could use Zig&rsquo;s compiler [6].<br>
+But wait, you might ask, isn&rsquo;t Zig a language of its own, how or why can it compile C code ?</p>
+<p>[6] <a href="https://ziglang.org/learn/overview/">https://ziglang.org/learn/overview/</a></p>
+<p>Well, <em>Zig (Zig CC)</em> is described by its lead developer Andrew Kelley as <em>a Powerful Drop-In Replacement for GCC/Clang</em> [7]. We can use Zig to compile C code, and a bunch of other things too [7.1]. In addition, it comes with incredible cross-compilation features.</p>
+<p>[7] <a href="https://andrewkelley.me/post/zig-cc-powerful-drop-in-replacement-gcc-clang.html">https://andrewkelley.me/post/zig-cc-powerful-drop-in-replacement-gcc-clang.html</a><br>
+[7.1] <a href="https://medium.com/@edlyuu/zig-c-c-compiler-wtf-is-zig-c-790d9ad8d85b">https://medium.com/@edlyuu/zig-c-c-compiler-wtf-is-zig-c-790d9ad8d85b</a></p>
+<p>This means we can use Zig to compile our Nim program, we just need a way to tell Nim to use Zig. Thankfully, someone else already did the leg work [8], and published a nimble package to help with this.</p>
+<p>[8] <a href="https://github.com/enthus1ast/zigcc">https://github.com/enthus1ast/zigcc</a></p>
+<p>You can also follow the stackoverflow link on the Github page and compile your own version (is what I did).</p>
+<p>Once the helper program installed or compiled, we can use Zig with Nim when targeting Windows with the following commands :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># On Linux</span>
+</span></span><span style="display:flex;"><span>nim c --cc:clang --clang.exe<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;zigcc&#34;</span> --clang.linkerexe<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;zigcc&#34;</span> --passc:<span style="color:#e6db74">&#34;-target x86_64-windows-gnu&#34;</span> --passl:<span style="color:#e6db74">&#34;-target x86_64-windows-gnu&#34;</span> --forceBuild:on --os:windows --out:hello-linux-zig.exe hello.nim
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># On Windows</span>
+</span></span><span style="display:flex;"><span>nim c --cc:clang --clang.exe<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;zigcc&#34;</span> --clang.linkerexe<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;zigcc&#34;</span> -o:hello-windows-zig.exe hello.nim
+</span></span></code></pre></div><p>The detection rate speak for themselves.</p>
+<table>
+    <tr>
+        <td style="border: 0;"><p>Compiling on Windows with Zig</p><img src="./imgs/hello-windows-zig.png"></td>
+        <td style="border: 0;"><p>Cross-Compiling on Linux with Zig</p><img src="./imgs/hello-linux-zig.png"></td>
+    </tr>
+</table>
+<p>Disclaimer: I haven&rsquo;t (yet) tried this on more significant Nim projects, but I see no reason why it wouldn&rsquo;t work.</p>
+<h3 id="dockerfile">Dockerfile</h3>
+<p>Here&rsquo;s a Dockerfile that installs Zig, Nim and some Nimble packages :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-Dockerfile" data-lang="Dockerfile"><span style="display:flex;"><span><span style="color:#66d9ef">FROM</span><span style="color:#e6db74"> alpine:3.20</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">RUN</span> apk update <span style="color:#f92672">&amp;&amp;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>apk add --no-cache build-base git zig nim nimble <span style="color:#f92672">&amp;&amp;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>rm -rf /var/cache/apk/* <span style="color:#f92672">&amp;&amp;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>nimble install -y winim nimcrypto ptr_math zigcc <span style="color:#f92672">&amp;&amp;</span> <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>mkdir /build <span style="color:#f92672">&amp;&amp;</span> mkdir /src<span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">ENV</span> PATH<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>PATH<span style="color:#e6db74">}</span><span style="color:#e6db74">:/root/.nimble/bin&#34;</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">CMD</span> [<span style="color:#e6db74">&#34;/bin/sh&#34;</span>]<span style="color:#960050;background-color:#1e0010">
+</span></span></span></code></pre></div><p>You can use it like this :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>docker run -v <span style="color:#e6db74">&#34;`pwd`:/src&#34;</span> -v <span style="color:#e6db74">&#34;`pwd`:/build&#34;</span> nim-zig-docker nim c --cc:clang --clang.exe<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;zigcc&#34;</span> --clang.linkerexe<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;zigcc&#34;</span> --passc:<span style="color:#e6db74">&#34;-target x86_64-windows-gnu&#34;</span> --passl:<span style="color:#e6db74">&#34;-target x86_64-windows-gnu&#34;</span> --forceBuild:on --os:windows --out:./build/hellowindows.exe ./src/hello.nim
+</span></span></code></pre></div><p>and probably make it better by having an entrypoint script to manage the argument list.</p>
+<hr>
+<p>Thanks for reading,<br>
+Fudge&hellip;</p>
+<p>
+> Created on : 12.09.2024 <br/>
+</p>
+    </div>
+</div>
+
+            </main>
+        </div>
+
+
+        <footer class="footer">
+    
+        <span>
+            © 2025 Fudgedotdotdot&#39;s blog, Built with
+            <a href="https://gohugo.io" class="footerLink">Hugo</a> and
+            <a href="https://github.com/LordMathis/hugo-theme-nightfall" class="footerLink">Nightfall</a> theme
+        </span>
+    
+</footer>
+    </div>
+
+</body>
+
+</html>

@@ -1,0 +1,29 @@
+baseURL = ''
+languageCode = 'en-us'
+title = 'My New Hugo Site'
+theme = "nightfall"
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+
+[menu]
+  [[menu.header]]
+    name = "about"
+    weight = 0
+    url = "about"
+  [[menu.header]]
+    name = "blog"
+    weight = 0
+    url = "posts"
+
+
+[params]
+user = "fudge"
+hostname = "penbox.com"
+published = true
+readingTime = false
+footerHtml = 'Built with <a href="https://gohugo.io" class="footerLink">Hugo</a> and custom <a href="https://github.com/LordMathis/hugo-theme-nightfall" class="footerLink">Nightfall</a> theme'
+  [params.author]
+    name = "Fudgedotdotdot's blog" 

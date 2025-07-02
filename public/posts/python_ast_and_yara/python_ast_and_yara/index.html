@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <title>
+
+Building Phishing Infrastructure With Terraform and Ansible | Fudgedotdotdot&#39;s blog
+</title>
+
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="">
+
+<meta name="generator" content="Hugo 0.147.8">
+
+
+<link rel="canonical" href="//localhost:1313/posts/python_ast_and_yara/python_ast_and_yara/" >
+
+
+
+
+<link href="/css/style.min.b09aa93f26d8e41172a027454356b2b8398e094069be17f6c0a0e3e7d53c8564.css" rel="stylesheet">
+
+
+
+
+</head>
+
+<body>
+
+    <div class="flexWrapper">
+        <header class="headerWrapper">
+    <div class="header">
+        <div>
+            <a class="terminal" href="//localhost:1313/">
+                <span>fudge@penbox.com ~ $</span>
+            </a>
+        </div>
+        <input class="side-menu" type="checkbox" id="side-menu">
+        <label class="hamb" for="side-menu"><span class="hamb-line"></span></label>
+        <nav class="headerLinks">
+            <ul>
+                
+                <li>
+                    <a href="//localhost:1313/about" title="" >
+                        ~/about</a>
+                </li>
+                
+                <li>
+                    <a href="//localhost:1313/posts" title="" >
+                        ~/blog</a>
+                </li>
+                
+            </ul>
+        </nav>
+    </div>
+</header>
+
+
+        <div class="content">
+            <main class="main">
+                
+<div class="postWrapper">
+    <h1>Building Phishing Infrastructure With Terraform and Ansible</h1>
+    
+    
+    <section class="postMetadata">
+        <dl>
+            
+            
+            
+                
+<dt>categories</dt>
+<dd><span></span>
+    <a href="/categories/infrastructure/">Infrastructure</a><span></span>
+    <a href="/categories/phishing/">Phishing</a></dd>
+            
+            
+                <dt>published</dt>
+                
+                <dd><time datetime="2025-07-02">July 2, 2025</time></dd>
+            
+            
+        </dl>
+    </section>
+    
+    <div>
+        <h1 id="using-pythons-ast-module-to-defeat-yara">Using python&rsquo;s AST module to defeat Yara</h1>
+<p>This article will touch on python&rsquo;s AST module and how to use it to obfuscate python code. I started this to hide the Medusa agent for Mythic from the public yara rules that detected it, and I ended up writing this whole blog that doesn&rsquo;t have a lot of things to do with Medusa.</p>
+<h2 id="pythons-ast">Python&rsquo;s AST</h2>
+<p>Python has a module called <em>AST</em> or Abstract-Syntax-Tree, which allows us to inspect and change python code in it&rsquo;s AST representation.</p>
+<p>Here&rsquo;s a quick example of a simple function and a fstring and it&rsquo;s AST representation.</p>
+<style>
+.code-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: none !important; 
+  border-top: none !important;
+  border-spacing: 0 16px;
+}
+
+.code-table td {
+  vertical-align: top;
+  width: 50%;
+  border: none !important; 
+}
+
+.code-block {
+  overflow-x: auto;
+  font-family: monospace;
+  font-size: 14px;
+  border: none !important; 
+  margin: 0;
+}
+
+</style>
+<table class="code-table">
+    <thead>
+          <th style="border: none !important;"> Python</td>
+          <th style="border: none !important;"> AST</th>
+    </thead> 
+  <tr>
+    <td>
+      <pre class="code-block"><code class="lang-python">def myfunction(s):
+    return s + "1"
+<p>myworld = &ldquo;World&rdquo;
+result = myfunction(myworld)
+print(f&quot;Hello {result} !&quot;)</code></pre>
+</td>
+<td>
+<pre class="code-block"><code class="lang-python">Module(
+body=[
+FunctionDef(
+name=&lsquo;myfunction&rsquo;,
+args=arguments(
+args=[
+arg(arg=&rsquo;s&rsquo;)]),
+body=[
+Return(
+value=BinOp(
+left=Name(id=&rsquo;s&rsquo;, ctx=Load()),
+op=Add(),
+right=Constant(value=&lsquo;1&rsquo;)))]),
+Assign(
+targets=[
+Name(id=&lsquo;myworld&rsquo;, ctx=Store())],
+value=Constant(value=&lsquo;World&rsquo;)),
+Assign(
+targets=[
+Name(id=&lsquo;result&rsquo;, ctx=Store())],
+value=Call(
+func=Name(id=&lsquo;myfunction&rsquo;, ctx=Load()),
+args=[
+Name(id=&lsquo;myworld&rsquo;, ctx=Load())])),
+Expr(
+value=Call(
+func=Name(id=&lsquo;print&rsquo;, ctx=Load()),
+args=[
+JoinedStr(
+values=[
+Constant(value=&lsquo;Hello &lsquo;),
+FormattedValue(
+value=Name(id=&lsquo;result&rsquo;, ctx=Load()),
+conversion=-1),
+Constant(value=&rsquo; !&rsquo;)])]))])</code></pre>
+</td></p>
+  </tr>
+</table>
+<p>As we can see, the function is defined with <code>FunctionDef</code>, the <strong>myworld</strong> and <strong>result</strong> variables with <code>Assign</code> and the function call to <strong>myfunction</strong> as an <code>Expr</code> with a value of <code>Call</code>.</p>
+<p>Moreover, the string literals <strong>World</strong>, <strong>Hello</strong> and <strong>!</strong> are defined with <code>Constant</code>. The fstring is represented with <code>JoinedStr</code>.</p>
+<p>Python&rsquo;s AST module can be used to modify this AST tree by definining methods with the <code>visit_</code> prefix, inside a class that inherits <code>ast.NodeTransformer</code>.</p>
+<p>The following code shows a class that will be used to <code>visit_Constant</code> and <code>visit_JoinedStr</code>. We also print the new code with <code>ast.unparse</code> which transforms our AST back into python code.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">StringObfuscator</span>(ast<span style="color:#f92672">.</span>NodeTransformer):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">__init__</span>(self):
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">pass</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">visit_JoinedStr</span>(self, node):
+</span></span><span style="display:flex;"><span>        print(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;visit_JoinedStr: </span><span style="color:#e6db74">{</span>node<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>)
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> self<span style="color:#f92672">.</span>generic_visit(node)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">visit_Constant</span>(self, node):
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> isinstance(node<span style="color:#f92672">.</span>value, str):
+</span></span><span style="display:flex;"><span>            print(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;visit_Constant: </span><span style="color:#e6db74">{</span>ast<span style="color:#f92672">.</span>dump(node, indent<span style="color:#f92672">=</span><span style="color:#ae81ff">4</span>)<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>)
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> node
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>base_code_ast <span style="color:#f92672">=</span> ast<span style="color:#f92672">.</span>parse(fd)
+</span></span><span style="display:flex;"><span>transformer <span style="color:#f92672">=</span> StringObfuscator()
+</span></span><span style="display:flex;"><span>base_code_obfuscated <span style="color:#f92672">=</span> transformer<span style="color:#f92672">.</span>visit(base_code_ast)
+</span></span><span style="display:flex;"><span>ast<span style="color:#f92672">.</span>fix_missing_locations(base_code_obfuscated)
+</span></span><span style="display:flex;"><span>new_base_code <span style="color:#f92672">=</span> ast<span style="color:#f92672">.</span>unparse(base_code_obfuscated)
+</span></span><span style="display:flex;"><span>print(new_base_code)
+</span></span></code></pre></div><p>An important section here is <code>if isinstance(node.value, str):</code>, we only want to show constants that are strings.</p>
+<p>Running the code shows how are constants are shown in AST.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>visit_Constant: Constant(value<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;1&#39;</span>)
+</span></span><span style="display:flex;"><span>visit_Constant: Constant(value<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;World&#39;</span>)
+</span></span><span style="display:flex;"><span>visit_JoinedStr: JoinedStr(
+</span></span><span style="display:flex;"><span>    values<span style="color:#f92672">=</span>[
+</span></span><span style="display:flex;"><span>        Constant(value<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;Hello &#39;</span>),
+</span></span><span style="display:flex;"><span>        FormattedValue(
+</span></span><span style="display:flex;"><span>            value<span style="color:#f92672">=</span>Name(id<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;result&#39;</span>, ctx<span style="color:#f92672">=</span>Load()),
+</span></span><span style="display:flex;"><span>            conversion<span style="color:#f92672">=-</span><span style="color:#ae81ff">1</span>),
+</span></span><span style="display:flex;"><span>        Constant(value<span style="color:#f92672">=</span><span style="color:#e6db74">&#39; !&#39;</span>)])
+</span></span><span style="display:flex;"><span>visit_Constant: Constant(value<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;Hello &#39;</span>)
+</span></span><span style="display:flex;"><span>visit_Constant: Constant(value<span style="color:#f92672">=</span><span style="color:#e6db74">&#39; !&#39;</span>)
+</span></span></code></pre></div><p>The recusive nature of this AST module is shown here, as the <code>JoinedStr</code> is called, prints the AST of its node, and then continues the &ldquo;visit&rdquo; with <code>generic_visit</code> which in turn gets to <code>visit_Constant</code> and prints <strong>Hello</strong> and <strong>!</strong> again.</p>
+<p>This simply shows that some nodes are comprised of other nodes.</p>
+<p>With this example out of the way, lets see how we can obfuscate strings.</p>
+<h2 id="string-obfuscation">String obfuscation</h2>
+<p>Our objective here is to replace our string constants with a call to a function. For the purpose of this article, our function will base64 encode the string.</p>
+<p>Because our class inherits from <code>ast.NodeTransformer</code> we are allowed to modify the node and return that new version to the AST.</p>
+<p>In the <code>visit_Constant</code> method, we will first check for internal constants, like <code>__main__</code> and return the node without modification.
+Then, we access <code>node.value</code>, which contains the full string, and we call our obfuscation function <code>obf_strings</code>.</p>
+<p>Since we want replace the AST with a function call that will decode the string, the <code>func</code> argument for the new <code>ast.Call</code> value is going to be our deobfuscation function (in this case, simple base64 decode), and the <code>args</code> value the encoded value of the string.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">visit_Constant</span>(self, node):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> isinstance(node<span style="color:#f92672">.</span>value, str):
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> <span style="color:#e6db74">&#34;__main__&#34;</span> <span style="color:#f92672">in</span> node<span style="color:#f92672">.</span>value:
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> node
+</span></span><span style="display:flex;"><span>        encoded <span style="color:#f92672">=</span> obf_strings(node<span style="color:#f92672">.</span>value)<span style="color:#f92672">.</span>decode()
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> ast<span style="color:#f92672">.</span>Call(
+</span></span><span style="display:flex;"><span>            func<span style="color:#f92672">=</span>ast<span style="color:#f92672">.</span>Name(id<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;deobf_strings&#34;</span>, ctx<span style="color:#f92672">=</span>ast<span style="color:#f92672">.</span>Load()),
+</span></span><span style="display:flex;"><span>            args<span style="color:#f92672">=</span>[ast<span style="color:#f92672">.</span>Constant(value<span style="color:#f92672">=</span>encoded)],
+</span></span><span style="display:flex;"><span>            keywords<span style="color:#f92672">=</span>[]
+</span></span><span style="display:flex;"><span>        )
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> node
+</span></span></code></pre></div><p>The AST of the modified code shows that we successfully changed the node.</p>
+<table class="code-table">
+    <thead>
+          <th style="border: none !important;"> Old AST</td>
+          <th style="border: none !important;"> New AST</th>
+    </thead> 
+  <tr>
+    <td>
+      <pre class="code-block"><code class="lang-python">Assign(
+        targets=[
+            Name(id='myworld', ctx=Store())],
+        value=Constant(value='World')),</code></pre>
+    </td>
+    <td>
+      <pre class="code-block"><code class="lang-python">Assign(
+        targets=[
+            Name(id='myworld', ctx=Store())],
+        value=Call(
+            func=Name(id='deobf_strings', ctx=Load()),
+            args=[
+                Constant(value='V29ybGQ')]))</code></pre>
+    </td>
+  </tr>
+</table>
+<p>If we try to apply this obfuscation to the fstring we had in our example code, we&rsquo;ll get this error:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">ValueError</span>(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;Unexpected node inside JoinedStr, </span><span style="color:#e6db74">{</span>node<span style="color:#e6db74">!r}</span><span style="color:#e6db74">&#34;</span>)
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">ValueError</span>: Unexpected node inside JoinedStr, <span style="color:#f92672">&lt;</span>ast<span style="color:#f92672">.</span>Call object at <span style="color:#ae81ff">0x00000238C35BD250</span><span style="color:#f92672">&gt;</span>
+</span></span></code></pre></div><p>Looking at the AST we generated, it looks like <code>ast.Call</code> replaced the <code>ast.Constant</code> as intended.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>Expr(
+</span></span><span style="display:flex;"><span>    value<span style="color:#f92672">=</span>Call(
+</span></span><span style="display:flex;"><span>        func<span style="color:#f92672">=</span>Name(id<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;print&#39;</span>, ctx<span style="color:#f92672">=</span>Load()),
+</span></span><span style="display:flex;"><span>        args<span style="color:#f92672">=</span>[
+</span></span><span style="display:flex;"><span>            JoinedStr(
+</span></span><span style="display:flex;"><span>                values<span style="color:#f92672">=</span>[
+</span></span><span style="display:flex;"><span>                    Call(
+</span></span><span style="display:flex;"><span>                        func<span style="color:#f92672">=</span>Name(id<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;deobf_strings&#39;</span>, ctx<span style="color:#f92672">=</span>Load()),
+</span></span><span style="display:flex;"><span>                        args<span style="color:#f92672">=</span>[
+</span></span><span style="display:flex;"><span>                            Constant(value<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;SGVsbG8g&#39;</span>)]),
+</span></span><span style="display:flex;"><span>                    FormattedValue(
+</span></span><span style="display:flex;"><span>                        value<span style="color:#f92672">=</span>Name(id<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;result&#39;</span>, ctx<span style="color:#f92672">=</span>Load()),
+</span></span><span style="display:flex;"><span>                        conversion<span style="color:#f92672">=-</span><span style="color:#ae81ff">1</span>),
+</span></span><span style="display:flex;"><span>                    Call(
+</span></span><span style="display:flex;"><span>                        func<span style="color:#f92672">=</span>Name(id<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;deobf_strings&#39;</span>, ctx<span style="color:#f92672">=</span>Load()),
+</span></span><span style="display:flex;"><span>                        args<span style="color:#f92672">=</span>[
+</span></span><span style="display:flex;"><span>                            Constant(value<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;ICE&#39;</span>)])])]))])
+</span></span></code></pre></div><p>The python source code for the AST module here : <a href="https://python.langchain.com/api_reference/_modules/ast.html">https://python.langchain.com/api_reference/_modules/ast.html</a> shows the only allowed types in a fstring are <code>str</code> <code>Constant</code> and <code>FormattedValue</code>, not <code>Call</code>.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">_write_fstring_inner</span>(self, node):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> isinstance(node, JoinedStr):
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e"># for both the f-string itself, and format_spec</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">for</span> value <span style="color:#f92672">in</span> node<span style="color:#f92672">.</span>values:
+</span></span><span style="display:flex;"><span>            self<span style="color:#f92672">.</span>_write_fstring_inner(value)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">elif</span> isinstance(node, Constant) <span style="color:#f92672">and</span> isinstance(node<span style="color:#f92672">.</span>value, str):
+</span></span><span style="display:flex;"><span>        [SNIP]
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">elif</span> isinstance(node, FormattedValue):
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>visit_FormattedValue(node)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">else</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">ValueError</span>(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;Unexpected node inside JoinedStr, </span><span style="color:#e6db74">{</span>node<span style="color:#e6db74">!r}</span><span style="color:#e6db74">&#34;</span>)
+</span></span></code></pre></div><p>We can easily fix the issue by returning a <code>ast.FormattedValue</code> type that can contain a function call. ie <code>f&quot;return value: {givereturn()}&quot;</code> is valid python code.</p>
+<p>And this is where the recusive nature of AST comes into play, we&rsquo;ll visit a <code>JoinedStr</code>, iterate over each nodes, check if the node is of type <code>ast.Constant</code>, visit the node , get the <code>ast.Call</code> back from our <code>visit_Constant</code> function and wrap a <code>ast.FormattedValue</code> around the call before continuing the recusive visit with <code>generic_visit(node)</code>.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">visit_JoinedStr</span>(self, node):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> idx, value <span style="color:#f92672">in</span> enumerate(node<span style="color:#f92672">.</span>values):
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> isinstance(value, ast<span style="color:#f92672">.</span>Constant) <span style="color:#f92672">and</span> isinstance(value<span style="color:#f92672">.</span>value, str):
+</span></span><span style="display:flex;"><span>            call_ast <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>visit(value)
+</span></span><span style="display:flex;"><span>            node<span style="color:#f92672">.</span>values[idx] <span style="color:#f92672">=</span> ast<span style="color:#f92672">.</span>FormattedValue(value<span style="color:#f92672">=</span>call_ast, conversion<span style="color:#f92672">=-</span><span style="color:#ae81ff">1</span>)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> self<span style="color:#f92672">.</span>generic_visit(node)
+</span></span></code></pre></div><p>Running our script will generate this python code:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">myfunction</span>(s):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> s <span style="color:#f92672">+</span> deobf_strings(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;MQ&#39;</span>)
+</span></span><span style="display:flex;"><span>myworld <span style="color:#f92672">=</span> deobf_strings(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;V29ybGQ&#39;</span>)
+</span></span><span style="display:flex;"><span>result <span style="color:#f92672">=</span> myfunction(myworld)
+</span></span><span style="display:flex;"><span>print(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">{</span>deobf_strings(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;SGVsbG8g&#39;</span>)<span style="color:#e6db74">}{</span>result<span style="color:#e6db74">}{</span>deobf_strings(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;ICE&#39;</span>)<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>)
+</span></span></code></pre></div><p>We&rsquo;ve now successfully hid our strings behind a function call that will decode them at runtime.</p>
+<p>Note, this works for keys and values in a dict as well:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>mydict <span style="color:#f92672">=</span> {<span style="color:#e6db74">&#39;testing&#39;</span>: <span style="color:#e6db74">&#39;value&#39;</span>, <span style="color:#e6db74">&#39;othertest&#39;</span>: <span style="color:#e6db74">&#39;othervalue&#39;</span>}
+</span></span><span style="display:flex;"><span>print(mydict[<span style="color:#e6db74">&#39;testing&#39;</span>])
+</span></span></code></pre></div><p>Obfuscated result:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>mydict <span style="color:#f92672">=</span> {deobf_strings(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;dGVzdGluZw&#39;</span>): deobf_strings(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;dmFsdWU&#39;</span>), deobf_strings(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;b3RoZXJ0ZXN0&#39;</span>): deobf_strings(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;b3RoZXJ2YWx1ZQ&#39;</span>)}
+</span></span><span style="display:flex;"><span>print(mydict[deobf_strings(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;dGVzdGluZw&#39;</span>)])
+</span></span><span style="display:flex;"><span><span style="color:#f92672">----------</span>EXEC<span style="color:#f92672">----------</span>
+</span></span><span style="display:flex;"><span>value
+</span></span></code></pre></div><p>You will have to include the deobfuscation function in the new code for the function call to work.</p>
+<h2 id="variables-and-arguments-obfuscation">Variables and arguments obfuscation</h2>
+<p>For variable names, we&rsquo;ll have to change our example code a bit during this chapter, as variables have different AST types depending on where they are defined.</p>
+<p>Lets start simple:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">myfunction</span>(s):
+</span></span><span style="display:flex;"><span>    x <span style="color:#f92672">=</span> s <span style="color:#f92672">+</span> <span style="color:#e6db74">&#34;1&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> x
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>myworld <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;World&#34;</span>
+</span></span><span style="display:flex;"><span>result <span style="color:#f92672">=</span> myfunction(myworld)
+</span></span><span style="display:flex;"><span>print(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;Hello </span><span style="color:#e6db74">{</span>result<span style="color:#e6db74">}</span><span style="color:#e6db74"> !&#34;</span>)
+</span></span></code></pre></div><p>Our variables (top to bottom) are <strong>x</strong>, <strong>myworld</strong> and <strong>result</strong>.</p>
+<p>We can create a variable collector to explore variables from the AST:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">VariablesCollector</span>(ast<span style="color:#f92672">.</span>NodeVisitor):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">__init__</span>(self):
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>variables <span style="color:#f92672">=</span> set()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">visit_Name</span>(self, node):
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> isinstance(node<span style="color:#f92672">.</span>ctx, ast<span style="color:#f92672">.</span>Store):
+</span></span><span style="display:flex;"><span>            self<span style="color:#f92672">.</span>variables<span style="color:#f92672">.</span>add(node<span style="color:#f92672">.</span>id)
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> node
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>base_code_ast <span style="color:#f92672">=</span> ast<span style="color:#f92672">.</span>parse(example_code)
+</span></span><span style="display:flex;"><span>transformer <span style="color:#f92672">=</span> VariablesCollector()
+</span></span><span style="display:flex;"><span>transformer<span style="color:#f92672">.</span>visit(base_code_ast)
+</span></span><span style="display:flex;"><span>print(transformer<span style="color:#f92672">.</span>variables)
+</span></span></code></pre></div><p>Our collector returns the variables we saw in our code:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>{<span style="color:#e6db74">&#39;myworld&#39;</span>, <span style="color:#e6db74">&#39;x&#39;</span>, <span style="color:#e6db74">&#39;result&#39;</span>}
+</span></span></code></pre></div><p>The reason why we are checking for <code>isinstance(node.ctx, ast.Store)</code> is because the AST for our example code looks like this:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>Assign(
+</span></span><span style="display:flex;"><span>    targets<span style="color:#f92672">=</span>[
+</span></span><span style="display:flex;"><span>        Name(id<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;myworld&#39;</span>, ctx<span style="color:#f92672">=</span>Store())],
+</span></span><span style="display:flex;"><span>    value<span style="color:#f92672">=</span>Constant(value<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;World&#39;</span>)),
+</span></span><span style="display:flex;"><span>Assign(
+</span></span><span style="display:flex;"><span>    targets<span style="color:#f92672">=</span>[
+</span></span><span style="display:flex;"><span>        Name(id<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;result&#39;</span>, ctx<span style="color:#f92672">=</span>Store())],
+</span></span><span style="display:flex;"><span>    value<span style="color:#f92672">=</span>Call(
+</span></span><span style="display:flex;"><span>        func<span style="color:#f92672">=</span>Name(id<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;myfunction&#39;</span>, ctx<span style="color:#f92672">=</span>Load()),
+</span></span><span style="display:flex;"><span>        args<span style="color:#f92672">=</span>[
+</span></span><span style="display:flex;"><span>            Name(id<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;myworld&#39;</span>, ctx<span style="color:#f92672">=</span>Load())])),
+</span></span></code></pre></div><p>When defining a variable, the <code>ctx</code> is <code>Store()</code>, when using it, <code>ctx</code> is <code>Load()</code>. We only want variable definitions when building our list of variables, otherwise we&rsquo;ll get <code>myfunction</code> which is not a variable, but a function.</p>
+<p>We are missing function arguments, they are variables too ! Let&rsquo;s add a <code>visit_arg</code> method to visit all arguments:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">visit_arg</span>(self, node):
+</span></span><span style="display:flex;"><span>    self<span style="color:#f92672">.</span>variables<span style="color:#f92672">.</span>add(node<span style="color:#f92672">.</span>arg)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> node
+</span></span></code></pre></div><p>The output shows our <strong>s</strong> variable:
+<code>{'myworld', 'result', 'x', 's'}</code></p>
+<p>We can already see that variables are parsed by the AST differently depending on the context. We can see this further when using classes:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">testing</span>():
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">__init__</span>(self):
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>myvalue <span style="color:#f92672">=</span> <span style="color:#ae81ff">123</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">testing_something</span>(self, arg1):
+</span></span><span style="display:flex;"><span>        something <span style="color:#f92672">=</span> arg1
+</span></span><span style="display:flex;"><span>        something <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;something_else&#34;</span>
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>myvalue <span style="color:#f92672">+=</span> <span style="color:#ae81ff">999</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> something
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">myfunction</span>(s):
+</span></span><span style="display:flex;"><span>    x <span style="color:#f92672">=</span> s <span style="color:#f92672">+</span> <span style="color:#e6db74">&#34;1&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> x
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>myworld <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;World&#34;</span>
+</span></span><span style="display:flex;"><span>result <span style="color:#f92672">=</span> myfunction(myworld)
+</span></span><span style="display:flex;"><span>print(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;Hello </span><span style="color:#e6db74">{</span>result<span style="color:#e6db74">}</span><span style="color:#e6db74"> !&#34;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>testingclass <span style="color:#f92672">=</span> testing()
+</span></span><span style="display:flex;"><span>print(testingclass<span style="color:#f92672">.</span>testing_something(<span style="color:#e6db74">&#34;something and &#34;</span>))
+</span></span></code></pre></div><p>Running our code again shows us: <code>{'something', 'result', 'self', 'arg1', 'testingclass', 'myworld', 'x', 's'}</code></p>
+<ul>
+<li><code>self</code> is the argument to the <code>__init__</code> function</li>
+<li><code>arg1</code> is the argument passed to the <code>testing_something</code> function</li>
+<li><code>something</code> is the variable defined in the <code>testing_something</code> function</li>
+<li><code>testingclass</code> is <code>testingclass = testing()</code></li>
+</ul>
+<p>We&rsquo;re still missing <code>self.myvalue</code>. This is because this &ldquo;variable&rdquo; is an attribute to the <code>testing</code> class.</p>
+<p>Adding a <code>visit_Attribute</code> method to our AST collector class, shows the <code>myvalue</code> attribute in our variable set:
+<code>{'something', 'myvalue', 'x', 'testing_something', 'testingclass', 'myworld', 'arg1', 's', 'self', 'result'}</code></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">visit_Attribute</span>(self, node):
+</span></span><span style="display:flex;"><span>    self<span style="color:#f92672">.</span>variables<span style="color:#f92672">.</span>add(node<span style="color:#f92672">.</span>attr)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> node
+</span></span></code></pre></div><p>Now we&rsquo;re starting to have issues with some of the names we are capturing, <code>self</code> should not be changed, it&rsquo;s internal to Python. We should exclude it in our <code>visit_arg</code> function:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">visit_arg</span>(self, node):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> <span style="color:#e6db74">&#39;self&#39;</span> <span style="color:#f92672">not</span> <span style="color:#f92672">in</span> node<span style="color:#f92672">.</span>arg:
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>variables<span style="color:#f92672">.</span>add(node<span style="color:#f92672">.</span>arg)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> node
+</span></span></code></pre></div><p>We should do the same with our <code>visit_Attribute</code> method. Additionnally, we also need to verify that the <code>node.value</code> is of instance <code>ast.Name</code>, otherwise, we&rsquo;ll get errors.</p>
+<p>As an example of such an error. Here&rsquo;s our new example code:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> base64
+</span></span><span style="display:flex;"><span>base64<span style="color:#f92672">.</span>b64encode(<span style="color:#e6db74">&#34;asdf&#34;</span>[::<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>]<span style="color:#f92672">.</span>encode())<span style="color:#f92672">.</span>strip(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;=&#34;</span>)
+</span></span></code></pre></div><p>The AST looks like:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>Attribute(
+</span></span><span style="display:flex;"><span>    value<span style="color:#f92672">=</span>Call( <span style="color:#75715e"># &lt;--- Attribute value is ast.Call</span>
+</span></span><span style="display:flex;"><span>        func<span style="color:#f92672">=</span>Attribute(
+</span></span><span style="display:flex;"><span>            value<span style="color:#f92672">=</span>Name(id<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;base64&#39;</span>, ctx<span style="color:#f92672">=</span>Load()),
+</span></span><span style="display:flex;"><span>            attr<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;b64encode&#39;</span>,
+</span></span><span style="display:flex;"><span>            ctx<span style="color:#f92672">=</span>Load()),
+</span></span><span style="display:flex;"><span>        args<span style="color:#f92672">=</span>[
+</span></span><span style="display:flex;"><span>            Call(
+</span></span><span style="display:flex;"><span>                func<span style="color:#f92672">=</span>Attribute(
+</span></span><span style="display:flex;"><span>                    value<span style="color:#f92672">=</span>Subscript( <span style="color:#75715e"># &lt;--- Attribute value is ast.Subscript</span>
+</span></span><span style="display:flex;"><span>                        value<span style="color:#f92672">=</span>Constant(value<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;asdf&#39;</span>),
+</span></span><span style="display:flex;"><span>                        slice<span style="color:#f92672">=</span>Slice(
+</span></span><span style="display:flex;"><span>                            step<span style="color:#f92672">=</span>UnaryOp(
+</span></span><span style="display:flex;"><span>                                op<span style="color:#f92672">=</span>USub(),
+</span></span><span style="display:flex;"><span>                                operand<span style="color:#f92672">=</span>Constant(value<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span>))),
+</span></span><span style="display:flex;"><span>                        ctx<span style="color:#f92672">=</span>Load()),
+</span></span><span style="display:flex;"><span>                    attr<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;encode&#39;</span>,
+</span></span><span style="display:flex;"><span>                    ctx<span style="color:#f92672">=</span>Load()))]),
+</span></span><span style="display:flex;"><span>    attr<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;strip&#39;</span>,
+</span></span><span style="display:flex;"><span>    ctx<span style="color:#f92672">=</span>Load())
+</span></span></code></pre></div><p>We have an attribute value of type <code>Call</code> and <code>Subscript</code>, we only want attributes that are <code>ast.Name</code> as we&rsquo;re collecting <em>everything that looks like a variable</em>.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">visit_Attribute</span>(self, node):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> isinstance(node<span style="color:#f92672">.</span>value, ast<span style="color:#f92672">.</span>Name):
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> <span style="color:#e6db74">&#39;self&#39;</span> <span style="color:#f92672">in</span> node<span style="color:#f92672">.</span>value<span style="color:#f92672">.</span>id:
+</span></span><span style="display:flex;"><span>            self<span style="color:#f92672">.</span>variables<span style="color:#f92672">.</span>add(node<span style="color:#f92672">.</span>attr)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> node
+</span></span></code></pre></div><hr>
+<p>I&rsquo;ll give you a second to gather your thoughts.</p>
+<hr>
+<p>Now that we have a list of variables that should be obfuscated, let&rsquo;s actually do that.</p>
+<p>We&rsquo;ll define a new class :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">VariableRenamer</span>(ast<span style="color:#f92672">.</span>NodeTransformer):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">__init__</span>(self, variables):
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>variables <span style="color:#f92672">=</span> variables
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>obf_variables <span style="color:#f92672">=</span> {}
+</span></span><span style="display:flex;"><span>   
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">obfuscate_variable_name</span>(self, name):
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> name <span style="color:#f92672">not</span> <span style="color:#f92672">in</span> self<span style="color:#f92672">.</span>obf_variables:
+</span></span><span style="display:flex;"><span>            self<span style="color:#f92672">.</span>obf_variables[name] <span style="color:#f92672">=</span> obf_strings(name)<span style="color:#f92672">.</span>decode()
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> self<span style="color:#f92672">.</span>obf_variables[name]
+</span></span><span style="display:flex;"><span>    
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">visit_Name</span>(self, node):
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> node<span style="color:#f92672">.</span>id <span style="color:#f92672">in</span> self<span style="color:#f92672">.</span>variables:
+</span></span><span style="display:flex;"><span>            node<span style="color:#f92672">.</span>id <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>obfuscate_variable_name(node<span style="color:#f92672">.</span>id)
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> self<span style="color:#f92672">.</span>generic_visit(node)
+</span></span><span style="display:flex;"><span>    
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">visit_arg</span>(self, node):
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> node<span style="color:#f92672">.</span>arg <span style="color:#f92672">in</span> self<span style="color:#f92672">.</span>variables:
+</span></span><span style="display:flex;"><span>            node<span style="color:#f92672">.</span>arg <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>obfuscate_variable_name(node<span style="color:#f92672">.</span>arg)
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> self<span style="color:#f92672">.</span>generic_visit(node)
+</span></span><span style="display:flex;"><span>    
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">visit_Attribute</span>(self, node):
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> node<span style="color:#f92672">.</span>attr <span style="color:#f92672">in</span> self<span style="color:#f92672">.</span>variables:
+</span></span><span style="display:flex;"><span>            node<span style="color:#f92672">.</span>attr <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>obfuscate_variable_name(node<span style="color:#f92672">.</span>attr)
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> self<span style="color:#f92672">.</span>generic_visit(node)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>base_code_ast <span style="color:#f92672">=</span> ast<span style="color:#f92672">.</span>parse(example_code)
+</span></span><span style="display:flex;"><span>transformer <span style="color:#f92672">=</span> VariablesCollector()
+</span></span><span style="display:flex;"><span>transformer<span style="color:#f92672">.</span>visit(base_code_ast)
+</span></span><span style="display:flex;"><span>transformer <span style="color:#f92672">=</span> VariableRenamer(transformer<span style="color:#f92672">.</span>variables)
+</span></span><span style="display:flex;"><span>base_code_obfuscated <span style="color:#f92672">=</span> transformer<span style="color:#f92672">.</span>visit(base_code_ast)
+</span></span><span style="display:flex;"><span>ast<span style="color:#f92672">.</span>fix_missing_locations(base_code_obfuscated)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>new_base_code <span style="color:#f92672">=</span> ast<span style="color:#f92672">.</span>unparse(base_code_obfuscated)
+</span></span><span style="display:flex;"><span>print(new_base_code)
+</span></span><span style="display:flex;"><span>print(<span style="color:#e6db74">&#34;----------EXEC----------&#34;</span>)
+</span></span><span style="display:flex;"><span>exec(new_base_code)
+</span></span></code></pre></div><p>There&rsquo;s a few things we need to check, first, for each type of &ldquo;variable&rdquo; we want to hide, we&rsquo;ll check if it exists in our list of previously collected variables and obfuscate them. Second, we use a helper function to keep track of which variable we&rsquo;ve already obfuscated.</p>
+<p>Adding a print statement inside the <code>obfuscate_variable_name</code> function shows that the AST recursion makes it so we visit a lot of the same variables, hence the <code>obf_variables</code> dict, preventing us from double or triple encoding variables. I&rsquo;m not sure this code is the more optimized way this could be implemented.</p>
+<p>Running our new code shows that all &ldquo;variables&rdquo; are correctly obfuscated.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">testing</span>:
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">__init__</span>(self):
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>bXl2YWx1ZQ <span style="color:#f92672">=</span> <span style="color:#ae81ff">123</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">testing_something</span>(self, YXJnMQ):
+</span></span><span style="display:flex;"><span>        c29tZXRoaW5n <span style="color:#f92672">=</span> YXJnMQ
+</span></span><span style="display:flex;"><span>        c29tZXRoaW5n <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#39;something_else&#39;</span>
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>bXl2YWx1ZQ <span style="color:#f92672">+=</span> <span style="color:#ae81ff">999</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> c29tZXRoaW5n
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">myfunction</span>(cw):
+</span></span><span style="display:flex;"><span>    eA <span style="color:#f92672">=</span> cw <span style="color:#f92672">+</span> <span style="color:#e6db74">&#39;1&#39;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> eA
+</span></span><span style="display:flex;"><span>bXl3b3JsZA <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;World&#39;</span>
+</span></span><span style="display:flex;"><span>cmVzdWx0 <span style="color:#f92672">=</span> myfunction(bXl3b3JsZA)
+</span></span><span style="display:flex;"><span>print(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;Hello </span><span style="color:#e6db74">{</span>cmVzdWx0<span style="color:#e6db74">}</span><span style="color:#e6db74"> !&#39;</span>)
+</span></span><span style="display:flex;"><span>dGVzdGluZ2NsYXNz <span style="color:#f92672">=</span> testing()
+</span></span><span style="display:flex;"><span>print(dGVzdGluZ2NsYXNz<span style="color:#f92672">.</span>testing_something(<span style="color:#e6db74">&#39;something and &#39;</span>))
+</span></span><span style="display:flex;"><span><span style="color:#f92672">----------</span>EXEC<span style="color:#f92672">----------</span>
+</span></span><span style="display:flex;"><span>Hello World1 <span style="color:#960050;background-color:#1e0010">!</span>
+</span></span><span style="display:flex;"><span>something <span style="color:#f92672">and</span> something_else
+</span></span></code></pre></div><h2 id="function-obfuscation">Function obfuscation</h2>
+<p>Let&rsquo;s talk about functions. At this point, we know the drill. The <code>obfuscate_func_name</code> is the same as the variable function, for now.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">FunctionObfuscator</span>(ast<span style="color:#f92672">.</span>NodeTransformer):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">__init__</span>(self):
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>func_names <span style="color:#f92672">=</span> {}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">obfuscate_func_name</span>(self, name):
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> name <span style="color:#f92672">not</span> <span style="color:#f92672">in</span> self<span style="color:#f92672">.</span>func_names:
+</span></span><span style="display:flex;"><span>            self<span style="color:#f92672">.</span>func_names[name] <span style="color:#f92672">=</span> obf_strings(name)<span style="color:#f92672">.</span>decode()
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> self<span style="color:#f92672">.</span>func_names[name]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">visit_FunctionDef</span>(self, node):
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>generic_visit(node)
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e"># same as the Constants, we avoid obfuscating internal python functions such as</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e"># __init__</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e"># __getitem__</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e"># etc</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> <span style="color:#f92672">not</span> node<span style="color:#f92672">.</span>name<span style="color:#f92672">.</span>startswith(<span style="color:#e6db74">&#39;__&#39;</span>): 
+</span></span><span style="display:flex;"><span>            node<span style="color:#f92672">.</span>name <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>obfuscate_func_name(node<span style="color:#f92672">.</span>name)
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> node
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">visit_Call</span>(self, node):
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>generic_visit(node)
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> isinstance(node<span style="color:#f92672">.</span>func, ast<span style="color:#f92672">.</span>Name):
+</span></span><span style="display:flex;"><span>            node<span style="color:#f92672">.</span>func<span style="color:#f92672">.</span>id <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>obfuscate_func_name(node<span style="color:#f92672">.</span>func<span style="color:#f92672">.</span>id)
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> node
+</span></span></code></pre></div><p>We are visiting function definitions with <code>visit_FunctionDef</code> and function calls with <code>visit_Call</code>.</p>
+<p>Using our example code below:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">testing</span>():
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">__init__</span>(self):
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>myvalue <span style="color:#f92672">=</span> <span style="color:#ae81ff">123</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">testing_something</span>(self, arg1):
+</span></span><span style="display:flex;"><span>        something <span style="color:#f92672">=</span> arg1
+</span></span><span style="display:flex;"><span>        something <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;something_else&#34;</span>
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>myvalue <span style="color:#f92672">+=</span> <span style="color:#ae81ff">999</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> something
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">myfunction</span>(s):
+</span></span><span style="display:flex;"><span>    x <span style="color:#f92672">=</span> s <span style="color:#f92672">+</span> <span style="color:#e6db74">&#34;1&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> x
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>myworld <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;World&#34;</span>
+</span></span><span style="display:flex;"><span>result <span style="color:#f92672">=</span> myfunction(myworld)
+</span></span><span style="display:flex;"><span>print(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;Hello </span><span style="color:#e6db74">{</span>result<span style="color:#e6db74">}</span><span style="color:#e6db74"> !&#34;</span>)
+</span></span><span style="display:flex;"><span>testingclass <span style="color:#f92672">=</span> testing()
+</span></span><span style="display:flex;"><span>print(testingclass<span style="color:#f92672">.</span>testing_something(<span style="color:#e6db74">&#34;something and &#34;</span>))
+</span></span></code></pre></div><p>Results in this python code:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">testing</span>:
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">__init__</span>(self):
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>myvalue <span style="color:#f92672">=</span> <span style="color:#ae81ff">123</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">dGVzdGluZ19zb21ldGhpbmc</span>(self, arg1):
+</span></span><span style="display:flex;"><span>        something <span style="color:#f92672">=</span> arg1
+</span></span><span style="display:flex;"><span>        something <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#39;something_else&#39;</span>
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>myvalue <span style="color:#f92672">+=</span> <span style="color:#ae81ff">999</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> something
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">bXlmdW5jdGlvbg</span>(s):
+</span></span><span style="display:flex;"><span>    x <span style="color:#f92672">=</span> s <span style="color:#f92672">+</span> <span style="color:#e6db74">&#39;1&#39;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> x
+</span></span><span style="display:flex;"><span>myworld <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;World&#39;</span>
+</span></span><span style="display:flex;"><span>result <span style="color:#f92672">=</span> bXlmdW5jdGlvbg(myworld)
+</span></span><span style="display:flex;"><span>cHJpbnQ(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;Hello </span><span style="color:#e6db74">{</span>result<span style="color:#e6db74">}</span><span style="color:#e6db74"> !&#39;</span>)
+</span></span><span style="display:flex;"><span>testingclass <span style="color:#f92672">=</span> dGVzdGluZw()
+</span></span><span style="display:flex;"><span>cHJpbnQ(testingclass<span style="color:#f92672">.</span>testing_something(<span style="color:#e6db74">&#39;something and &#39;</span>))
+</span></span></code></pre></div><p>Straight away, we see a lot of problemes, our builtin functions are obfuscated, the initialization of the <code>testing</code> class is too, but not the class definition, and the call to the method <code>testingclass.testing_something</code> is NOT obfuscated.</p>
+<p>Let&rsquo;s treat each issue individually :</p>
+<p><strong>Builtins</strong></p>
+<p>We need to build a list of builtins and other functions that cannot be obfuscated.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">FunctionObfuscator</span>(ast<span style="color:#f92672">.</span>NodeTransformer):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">__init__</span>(self, dontobfuscate):
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>func_names <span style="color:#f92672">=</span> {}
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>dontobfuscate <span style="color:#f92672">=</span> set(dir(__builtins__))
+</span></span></code></pre></div><p>Functions from other modules will also have to be added to <code>self.dontobfuscate</code>. Here&rsquo;s an example of the issue:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> os <span style="color:#f92672">import</span> system
+</span></span><span style="display:flex;"><span>system(<span style="color:#e6db74">&#34;whoami&#34;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Result</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> os <span style="color:#f92672">import</span> system
+</span></span><span style="display:flex;"><span>c3lzdGVt(<span style="color:#e6db74">&#39;whoami&#39;</span>)
+</span></span></code></pre></div><p>AST to the rescue, we can use a <code>ast.NodeVisitor</code> to visit the <code>ImportFrom</code> type. That will give us <code>system</code> in our example.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">ImportCollector</span>(ast<span style="color:#f92672">.</span>NodeVisitor):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">__init__</span>(self):
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>dontobfuscate_classes <span style="color:#f92672">=</span> set()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">visit_ImportFrom</span>(self, node):
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">for</span> fn <span style="color:#f92672">in</span> node<span style="color:#f92672">.</span>names: self<span style="color:#f92672">.</span>dontobfuscate_classes<span style="color:#f92672">.</span>add(fn<span style="color:#f92672">.</span>name)
+</span></span></code></pre></div><p>We pass <code>ImportCollector.dontobfuscate_classes</code> to <code>FunctionObfuscator</code>.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">FunctionObfuscator</span>(ast<span style="color:#f92672">.</span>NodeTransformer):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">__init__</span>(self, funcdontobfuscate):
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>dontobfuscate <span style="color:#f92672">=</span> set(dir(__builtins__))
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> funcdontobfuscate: self<span style="color:#f92672">.</span>dontobfuscate<span style="color:#f92672">.</span>add(i)
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>func_names <span style="color:#f92672">=</span> {}
+</span></span></code></pre></div><p>And finally change our <code>visit_Call</code>:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">visit_Call</span>(self, node):
+</span></span><span style="display:flex;"><span>    self<span style="color:#f92672">.</span>generic_visit(node)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> isinstance(node<span style="color:#f92672">.</span>func, ast<span style="color:#f92672">.</span>Name):
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> node<span style="color:#f92672">.</span>func<span style="color:#f92672">.</span>id <span style="color:#f92672">in</span> self<span style="color:#f92672">.</span>dontobfuscate:
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> node
+</span></span><span style="display:flex;"><span>        node<span style="color:#f92672">.</span>func<span style="color:#f92672">.</span>id <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>obfuscate_func_name(node<span style="color:#f92672">.</span>func<span style="color:#f92672">.</span>id)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> node
+</span></span></code></pre></div><p><strong>Class obfuscation</strong></p>
+<p>Here&rsquo;s the code that causes an issue:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">testing</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">__init__</span>(self):
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>myvalue <span style="color:#f92672">=</span> <span style="color:#ae81ff">123</span>
+</span></span><span style="display:flex;"><span>[SNIP]
+</span></span><span style="display:flex;"><span>testingclass <span style="color:#f92672">=</span> dGVzdGluZw()
+</span></span></code></pre></div><p>We have to add a <code>visit_ClassDef</code> to our <code>FunctionObfuscator</code> class</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">visit_ClassDef</span>(self, node):
+</span></span><span style="display:flex;"><span>        node<span style="color:#f92672">.</span>name <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>obfuscate_func_name(node<span style="color:#f92672">.</span>name)
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> node
+</span></span></code></pre></div><p>We don&rsquo;t need to add <code>self.generic_visit(node)</code> to this visit, as we already have other <code>visit_*</code> methods that will visit the nodes we are interested in.</p>
+<p>Now the class definition is obfuscated as well:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">dGVzdGluZw</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">__init__</span>(self):
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>myvalue <span style="color:#f92672">=</span> <span style="color:#ae81ff">123</span>
+</span></span><span style="display:flex;"><span>[SNIP]
+</span></span><span style="display:flex;"><span>testingclass <span style="color:#f92672">=</span> dGVzdGluZw()
+</span></span></code></pre></div><p><strong>Method obfuscation</strong></p>
+<p>Finally, for the methods of the <code>testing</code> class, we add a <code>visit_Attribute</code> method to our class.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">visit_Attribute</span>(self, node):
+</span></span><span style="display:flex;"><span>    self<span style="color:#f92672">.</span>generic_visit(node)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> isinstance(node<span style="color:#f92672">.</span>ctx, ast<span style="color:#f92672">.</span>Load) <span style="color:#f92672">and</span> isinstance(node<span style="color:#f92672">.</span>value, ast<span style="color:#f92672">.</span>Name):
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e"># attr is a function (method), which we already obfuscated in visit_FunctionDef()</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> node<span style="color:#f92672">.</span>attr <span style="color:#f92672">in</span> self<span style="color:#f92672">.</span>func_names:
+</span></span><span style="display:flex;"><span>            node<span style="color:#f92672">.</span>attr <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>func_names[node<span style="color:#f92672">.</span>attr]
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> node
+</span></span></code></pre></div><p>Since the function definition of the method was already processed in our <code>visit_FunctionDef()</code> method, we can simply get the encoded value our of the <code>func_names</code> dict.</p>
+<p>Here&rsquo;s the AST dump of the node that we should obfuscate.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>Attribute(
+</span></span><span style="display:flex;"><span>    value<span style="color:#f92672">=</span>Name(id<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;testingclass&#39;</span>, ctx<span style="color:#f92672">=</span>Load()),
+</span></span><span style="display:flex;"><span>    attr<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;testing_something&#39;</span>,
+</span></span><span style="display:flex;"><span>    ctx<span style="color:#f92672">=</span>Load())
+</span></span></code></pre></div><h2 id="the-end-maybe-">The End&hellip; Maybe ?</h2>
+<p>Putting everything together gives us :</p>
+<p><strong>Python code</strong></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>fd <span style="color:#f92672">=</span>  <span style="color:#e6db74">&#34;&#34;&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">class testing():
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    def __init__(self):
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        self.myvalue = 123
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    def testing_something(self, arg1):
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        something = arg1
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        something += &#34;something_else&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        self.myvalue += 999
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        return something
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">def myfunction(s):
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    x = s + &#34;1&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    return x
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">myworld = &#34;World&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">result = myfunction(myworld)
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">print(f&#34;Hello </span><span style="color:#e6db74">{result}</span><span style="color:#e6db74"> !&#34;)
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">testingclass = testing()
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">print(testingclass.testing_something(&#34;something and &#34;))
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">&#34;&#34;&#34;</span>
+</span></span></code></pre></div><p><strong>Obfuscation code</strong></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>base_code_ast <span style="color:#f92672">=</span> ast<span style="color:#f92672">.</span>parse(inspect<span style="color:#f92672">.</span>getsource(deobf_strings) <span style="color:#f92672">+</span> <span style="color:#e6db74">&#39;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">+</span> fd)
+</span></span><span style="display:flex;"><span>transformer <span style="color:#f92672">=</span> VariablesCollector()
+</span></span><span style="display:flex;"><span>transformer<span style="color:#f92672">.</span>visit(base_code_ast)
+</span></span><span style="display:flex;"><span>all_variables <span style="color:#f92672">=</span> transformer<span style="color:#f92672">.</span>variables
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>transformer <span style="color:#f92672">=</span> ImportCollector()
+</span></span><span style="display:flex;"><span>transformer<span style="color:#f92672">.</span>visit(base_code_ast)
+</span></span><span style="display:flex;"><span>dontobfuscate <span style="color:#f92672">=</span> transformer<span style="color:#f92672">.</span>dontobfuscate
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>transformer <span style="color:#f92672">=</span> VariableRenamer(all_variables)
+</span></span><span style="display:flex;"><span>base_code_obfuscated <span style="color:#f92672">=</span> transformer<span style="color:#f92672">.</span>visit(base_code_ast)
+</span></span><span style="display:flex;"><span>ast<span style="color:#f92672">.</span>fix_missing_locations(base_code_obfuscated)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>transformer <span style="color:#f92672">=</span> FunctionObfuscator(dontobfuscate)
+</span></span><span style="display:flex;"><span>base_code_obfuscated <span style="color:#f92672">=</span> transformer<span style="color:#f92672">.</span>visit(base_code_ast)
+</span></span><span style="display:flex;"><span>ast<span style="color:#f92672">.</span>fix_missing_locations(base_code_obfuscated)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>transformer <span style="color:#f92672">=</span> StringObfuscator()
+</span></span><span style="display:flex;"><span>base_code_obfuscated <span style="color:#f92672">=</span> transformer<span style="color:#f92672">.</span>visit(base_code_ast)
+</span></span><span style="display:flex;"><span>ast<span style="color:#f92672">.</span>fix_missing_locations(base_code_obfuscated)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>new_base_code <span style="color:#f92672">=</span> ast<span style="color:#f92672">.</span>unparse(base_code_obfuscated)
+</span></span><span style="display:flex;"><span>print(new_base_code)
+</span></span><span style="display:flex;"><span>print(<span style="color:#e6db74">&#34;----------EXEC----------&#34;</span>)
+</span></span><span style="display:flex;"><span>exec(new_base_code)
+</span></span></code></pre></div><p>Notice the <code>inspect.getsource(deobf_strings)</code> which includes the source of the <code>deobf_strings</code> function into the code we want to obfuscate.</p>
+<p><strong>Obfuscated result</strong></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">ZGVvYmZfc3RyaW5ncw</span>(ZW5jb2RlZF92YWx1ZQ: bytes) <span style="color:#f92672">-&gt;</span> str:
+</span></span><span style="display:flex;"><span>    cGFkZGluZ19uZWVkZWQ <span style="color:#f92672">=</span> <span style="color:#ae81ff">4</span> <span style="color:#f92672">-</span> len(ZW5jb2RlZF92YWx1ZQ) <span style="color:#f92672">%</span> <span style="color:#ae81ff">4</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> cGFkZGluZ19uZWVkZWQ <span style="color:#f92672">!=</span> <span style="color:#ae81ff">4</span>:
+</span></span><span style="display:flex;"><span>        ZW5jb2RlZF92YWx1ZQ <span style="color:#f92672">+=</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;=&#39;</span> <span style="color:#f92672">*</span> cGFkZGluZ19uZWVkZWQ
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> base64<span style="color:#f92672">.</span>b64decode(ZW5jb2RlZF92YWx1ZQ)<span style="color:#f92672">.</span>decode()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">dGVzdGluZw</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">__init__</span>(self):
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>bXl2YWx1ZQ <span style="color:#f92672">=</span> <span style="color:#ae81ff">123</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">dGVzdGluZ19zb21ldGhpbmc</span>(self, YXJnMQ):
+</span></span><span style="display:flex;"><span>        c29tZXRoaW5n <span style="color:#f92672">=</span> YXJnMQ
+</span></span><span style="display:flex;"><span>        c29tZXRoaW5n <span style="color:#f92672">+=</span> ZGVvYmZfc3RyaW5ncw(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;c29tZXRoaW5nX2Vsc2U&#39;</span>)
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>bXl2YWx1ZQ <span style="color:#f92672">+=</span> <span style="color:#ae81ff">999</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> c29tZXRoaW5n
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">bXlmdW5jdGlvbg</span>(cw):
+</span></span><span style="display:flex;"><span>    eA <span style="color:#f92672">=</span> cw <span style="color:#f92672">+</span> ZGVvYmZfc3RyaW5ncw(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;MQ&#39;</span>)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> eA
+</span></span><span style="display:flex;"><span>bXl3b3JsZA <span style="color:#f92672">=</span> ZGVvYmZfc3RyaW5ncw(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;V29ybGQ&#39;</span>)
+</span></span><span style="display:flex;"><span>cmVzdWx0 <span style="color:#f92672">=</span> bXlmdW5jdGlvbg(bXl3b3JsZA)
+</span></span><span style="display:flex;"><span>print(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">{</span>ZGVvYmZfc3RyaW5ncw(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;SGVsbG8g&#39;</span>)<span style="color:#e6db74">}{</span>cmVzdWx0<span style="color:#e6db74">}{</span>ZGVvYmZfc3RyaW5ncw(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;ICE&#39;</span>)<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>)
+</span></span><span style="display:flex;"><span>dGVzdGluZ2NsYXNz <span style="color:#f92672">=</span> dGVzdGluZw()
+</span></span><span style="display:flex;"><span>print(dGVzdGluZ2NsYXNz<span style="color:#f92672">.</span>dGVzdGluZ19zb21ldGhpbmc(ZGVvYmZfc3RyaW5ncw(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;c29tZXRoaW5nIGFuZCA&#39;</span>)))
+</span></span></code></pre></div><p>And it executes fine:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">----------</span>EXEC<span style="color:#f92672">----------</span>
+</span></span><span style="display:flex;"><span>Hello World1 <span style="color:#960050;background-color:#1e0010">!</span>
+</span></span><span style="display:flex;"><span>something <span style="color:#f92672">and</span> something_else
+</span></span></code></pre></div><h2 id="no-not-the-end">No, not the end</h2>
+<p>Issues start here.</p>
+<h4 id="lambdas">Lambdas</h4>
+<p>What about <em>lambdas</em> ? This quick python way of defining a anonymous function like so:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>xtime <span style="color:#f92672">=</span> <span style="color:#66d9ef">lambda</span> a: (((a <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">1</span>) <span style="color:#f92672">^</span> <span style="color:#ae81ff">0x1B</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xFF</span>) <span style="color:#66d9ef">if</span> (a <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0x80</span>) <span style="color:#66d9ef">else</span> (a <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">1</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">mix_single_column</span>(a):
+</span></span><span style="display:flex;"><span>    t <span style="color:#f92672">=</span> a[<span style="color:#ae81ff">0</span>] <span style="color:#f92672">^</span> a[<span style="color:#ae81ff">1</span>] <span style="color:#f92672">^</span> a[<span style="color:#ae81ff">2</span>] <span style="color:#f92672">^</span> a[<span style="color:#ae81ff">3</span>]
+</span></span><span style="display:flex;"><span>    u <span style="color:#f92672">=</span> a[<span style="color:#ae81ff">0</span>]
+</span></span><span style="display:flex;"><span>    a[<span style="color:#ae81ff">0</span>] <span style="color:#f92672">^=</span> t <span style="color:#f92672">^</span> xtime(a[<span style="color:#ae81ff">0</span>] <span style="color:#f92672">^</span> a[<span style="color:#ae81ff">1</span>])
+</span></span><span style="display:flex;"><span>    a[<span style="color:#ae81ff">1</span>] <span style="color:#f92672">^=</span> t <span style="color:#f92672">^</span> xtime(a[<span style="color:#ae81ff">1</span>] <span style="color:#f92672">^</span> a[<span style="color:#ae81ff">2</span>])
+</span></span><span style="display:flex;"><span>    a[<span style="color:#ae81ff">2</span>] <span style="color:#f92672">^=</span> t <span style="color:#f92672">^</span> xtime(a[<span style="color:#ae81ff">2</span>] <span style="color:#f92672">^</span> a[<span style="color:#ae81ff">3</span>])
+</span></span><span style="display:flex;"><span>    a[<span style="color:#ae81ff">3</span>] <span style="color:#f92672">^=</span> t <span style="color:#f92672">^</span> xtime(a[<span style="color:#ae81ff">3</span>] <span style="color:#f92672">^</span> u)
+</span></span></code></pre></div><p>Running it through our obfuscator give us this :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">ZGVvYmZfc3RyaW5ncw</span>(ZW5jb2RlZF92YWx1ZQ: bytes) <span style="color:#f92672">-&gt;</span> str:
+</span></span><span style="display:flex;"><span>    cGFkZGluZ19uZWVkZWQ <span style="color:#f92672">=</span> <span style="color:#ae81ff">4</span> <span style="color:#f92672">-</span> len(ZW5jb2RlZF92YWx1ZQ) <span style="color:#f92672">%</span> <span style="color:#ae81ff">4</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> cGFkZGluZ19uZWVkZWQ <span style="color:#f92672">!=</span> <span style="color:#ae81ff">4</span>:
+</span></span><span style="display:flex;"><span>        ZW5jb2RlZF92YWx1ZQ <span style="color:#f92672">+=</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;=&#39;</span> <span style="color:#f92672">*</span> cGFkZGluZ19uZWVkZWQ
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> base64<span style="color:#f92672">.</span>b64decode(ZW5jb2RlZF92YWx1ZQ)<span style="color:#f92672">.</span>decode()
+</span></span><span style="display:flex;"><span>eHRpbWU <span style="color:#f92672">=</span> <span style="color:#66d9ef">lambda</span> YQ: (YQ <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">1</span> <span style="color:#f92672">^</span> <span style="color:#ae81ff">27</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">255</span> <span style="color:#66d9ef">if</span> YQ <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">128</span> <span style="color:#66d9ef">else</span> YQ <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">bWl4X3NpbmdsZV9jb2x1bW4</span>(YQ):
+</span></span><span style="display:flex;"><span>    dA <span style="color:#f92672">=</span> YQ[<span style="color:#ae81ff">0</span>] <span style="color:#f92672">^</span> YQ[<span style="color:#ae81ff">1</span>] <span style="color:#f92672">^</span> YQ[<span style="color:#ae81ff">2</span>] <span style="color:#f92672">^</span> YQ[<span style="color:#ae81ff">3</span>]
+</span></span><span style="display:flex;"><span>    dQ <span style="color:#f92672">=</span> YQ[<span style="color:#ae81ff">0</span>]
+</span></span><span style="display:flex;"><span>    YQ[<span style="color:#ae81ff">0</span>] <span style="color:#f92672">^=</span> dA <span style="color:#f92672">^</span> ZUhScGJXVQ(YQ[<span style="color:#ae81ff">0</span>] <span style="color:#f92672">^</span> YQ[<span style="color:#ae81ff">1</span>])
+</span></span><span style="display:flex;"><span>    YQ[<span style="color:#ae81ff">1</span>] <span style="color:#f92672">^=</span> dA <span style="color:#f92672">^</span> ZUhScGJXVQ(YQ[<span style="color:#ae81ff">1</span>] <span style="color:#f92672">^</span> YQ[<span style="color:#ae81ff">2</span>])
+</span></span><span style="display:flex;"><span>    YQ[<span style="color:#ae81ff">2</span>] <span style="color:#f92672">^=</span> dA <span style="color:#f92672">^</span> ZUhScGJXVQ(YQ[<span style="color:#ae81ff">2</span>] <span style="color:#f92672">^</span> YQ[<span style="color:#ae81ff">3</span>])
+</span></span><span style="display:flex;"><span>    YQ[<span style="color:#ae81ff">3</span>] <span style="color:#f92672">^=</span> dA <span style="color:#f92672">^</span> ZUhScGJXVQ(YQ[<span style="color:#ae81ff">3</span>] <span style="color:#f92672">^</span> dQ)
+</span></span></code></pre></div><p>The xtime was encoded as a variable, and then obfuscated as a function. The <code>ZUhScGJXVQ</code> value is :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>❯ echo -n <span style="color:#e6db74">&#39;eHRpbWU&#39;</span> | base64
+</span></span><span style="display:flex;"><span>ZUhScGJXVQ<span style="color:#f92672">==</span>
+</span></span></code></pre></div><p>That means that the <code>visit_FunctionDef</code> method, or more specifically the <code>obfuscate_func_name</code> function saw a function name that wasn&rsquo;t already encoded, and encoded it again.
+Why does that happen ? Probably because my code is terrible.</p>
+<p>This is how our code looks like after variable obfuscation:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>eHRpbWU <span style="color:#f92672">=</span> <span style="color:#66d9ef">lambda</span> YQ: (YQ <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">1</span> <span style="color:#f92672">^</span> <span style="color:#ae81ff">27</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">255</span> <span style="color:#66d9ef">if</span> YQ <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">128</span> <span style="color:#66d9ef">else</span> YQ <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">mix_single_column</span>(YQ):
+</span></span><span style="display:flex;"><span>    dA <span style="color:#f92672">=</span> YQ[<span style="color:#ae81ff">0</span>] <span style="color:#f92672">^</span> YQ[<span style="color:#ae81ff">1</span>] <span style="color:#f92672">^</span> YQ[<span style="color:#ae81ff">2</span>] <span style="color:#f92672">^</span> YQ[<span style="color:#ae81ff">3</span>]
+</span></span><span style="display:flex;"><span>    dQ <span style="color:#f92672">=</span> YQ[<span style="color:#ae81ff">0</span>]
+</span></span><span style="display:flex;"><span>    YQ[<span style="color:#ae81ff">0</span>] <span style="color:#f92672">^=</span> dA <span style="color:#f92672">^</span> eHRpbWU(YQ[<span style="color:#ae81ff">0</span>] <span style="color:#f92672">^</span> YQ[<span style="color:#ae81ff">1</span>])
+</span></span><span style="display:flex;"><span>    YQ[<span style="color:#ae81ff">1</span>] <span style="color:#f92672">^=</span> dA <span style="color:#f92672">^</span> eHRpbWU(YQ[<span style="color:#ae81ff">1</span>] <span style="color:#f92672">^</span> YQ[<span style="color:#ae81ff">2</span>])
+</span></span><span style="display:flex;"><span>    YQ[<span style="color:#ae81ff">2</span>] <span style="color:#f92672">^=</span> dA <span style="color:#f92672">^</span> eHRpbWU(YQ[<span style="color:#ae81ff">2</span>] <span style="color:#f92672">^</span> YQ[<span style="color:#ae81ff">3</span>])
+</span></span><span style="display:flex;"><span>    YQ[<span style="color:#ae81ff">3</span>] <span style="color:#f92672">^=</span> dA <span style="color:#f92672">^</span> eHRpbWU(YQ[<span style="color:#ae81ff">3</span>] <span style="color:#f92672">^</span> dQ)
+</span></span></code></pre></div><p>This is how our code looks like after function obfuscation:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>eHRpbWU <span style="color:#f92672">=</span> <span style="color:#66d9ef">lambda</span> YQ: (YQ <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">1</span> <span style="color:#f92672">^</span> <span style="color:#ae81ff">27</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">255</span> <span style="color:#66d9ef">if</span> YQ <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">128</span> <span style="color:#66d9ef">else</span> YQ <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">bWl4X3NpbmdsZV9jb2x1bW4</span>(YQ):
+</span></span><span style="display:flex;"><span>    dA <span style="color:#f92672">=</span> YQ[<span style="color:#ae81ff">0</span>] <span style="color:#f92672">^</span> YQ[<span style="color:#ae81ff">1</span>] <span style="color:#f92672">^</span> YQ[<span style="color:#ae81ff">2</span>] <span style="color:#f92672">^</span> YQ[<span style="color:#ae81ff">3</span>]
+</span></span><span style="display:flex;"><span>    dQ <span style="color:#f92672">=</span> YQ[<span style="color:#ae81ff">0</span>]
+</span></span><span style="display:flex;"><span>    YQ[<span style="color:#ae81ff">0</span>] <span style="color:#f92672">^=</span> dA <span style="color:#f92672">^</span> ZUhScGJXVQ(YQ[<span style="color:#ae81ff">0</span>] <span style="color:#f92672">^</span> YQ[<span style="color:#ae81ff">1</span>])
+</span></span><span style="display:flex;"><span>    YQ[<span style="color:#ae81ff">1</span>] <span style="color:#f92672">^=</span> dA <span style="color:#f92672">^</span> ZUhScGJXVQ(YQ[<span style="color:#ae81ff">1</span>] <span style="color:#f92672">^</span> YQ[<span style="color:#ae81ff">2</span>])
+</span></span><span style="display:flex;"><span>    YQ[<span style="color:#ae81ff">2</span>] <span style="color:#f92672">^=</span> dA <span style="color:#f92672">^</span> ZUhScGJXVQ(YQ[<span style="color:#ae81ff">2</span>] <span style="color:#f92672">^</span> YQ[<span style="color:#ae81ff">3</span>])
+</span></span><span style="display:flex;"><span>    YQ[<span style="color:#ae81ff">3</span>] <span style="color:#f92672">^=</span> dA <span style="color:#f92672">^</span> ZUhScGJXVQ(YQ[<span style="color:#ae81ff">3</span>] <span style="color:#f92672">^</span> dQ)
+</span></span></code></pre></div><p>In <code>obfuscate_func_name</code>, we need to check if the function we are attempting to encoded was already obfuscated by our variable encoder. This way we cover the issues with <code>lambda</code> functions.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">FunctionObfuscator</span>(ast<span style="color:#f92672">.</span>NodeTransformer):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">__init__</span>(self, funcdontobfuscate, obf_variables):
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>dontobfuscate <span style="color:#f92672">=</span> set(dir(__builtins__))
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>obf_variables <span style="color:#f92672">=</span> obf_variables
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> funcdontobfuscate: self<span style="color:#f92672">.</span>dontobfuscate<span style="color:#f92672">.</span>add(i)
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>func_names <span style="color:#f92672">=</span> {}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">obfuscate_func_name</span>(self, name):
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> name <span style="color:#f92672">not</span> <span style="color:#f92672">in</span> self<span style="color:#f92672">.</span>func_names:
+</span></span><span style="display:flex;"><span>            self<span style="color:#f92672">.</span>func_names[name] <span style="color:#f92672">=</span> obf_strings(name)<span style="color:#f92672">.</span>decode()
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> name <span style="color:#f92672">in</span> self<span style="color:#f92672">.</span>obf_variables<span style="color:#f92672">.</span>values():
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">for</span> k, v <span style="color:#f92672">in</span> self<span style="color:#f92672">.</span>obf_variables<span style="color:#f92672">.</span>items():
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">if</span> name <span style="color:#f92672">in</span> v:
+</span></span><span style="display:flex;"><span>                    <span style="color:#66d9ef">return</span> self<span style="color:#f92672">.</span>obf_variables[k]
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> self<span style="color:#f92672">.</span>func_names[name]
+</span></span></code></pre></div><h4 id="assignments">Assignments</h4>
+<p>Now with assignement issues. The following is valid python code</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> threading <span style="color:#f92672">import</span> Thread
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">myfunc</span>():
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span>x <span style="color:#f92672">=</span> myfunc
+</span></span><span style="display:flex;"><span>x()
+</span></span><span style="display:flex;"><span>threads <span style="color:#f92672">=</span> Thread(target<span style="color:#f92672">=</span>myfunc)
+</span></span></code></pre></div><p>Obfuscated version is this:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> threading <span style="color:#f92672">import</span> Thread
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">bXlmdW5j</span>():
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span>eA <span style="color:#f92672">=</span> myfunc
+</span></span><span style="display:flex;"><span>eA()
+</span></span><span style="display:flex;"><span>dGhyZWFkcw <span style="color:#f92672">=</span> Thread(target<span style="color:#f92672">=</span>myfunc)
+</span></span></code></pre></div><p>Since <code>x = myfunc</code> is just an assignment, or <code>ast.Assign</code> type, we never visited the node to check if the RHS (<em>Right Hand Side</em>) of the assignement is a function, and therefore didn&rsquo;t change the <code>myfunc</code> value, despite having changed it&rsquo;s function definition.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>Assign(
+</span></span><span style="display:flex;"><span>    targets<span style="color:#f92672">=</span>[
+</span></span><span style="display:flex;"><span>        Name(id<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;x&#39;</span>, ctx<span style="color:#f92672">=</span>Store())],
+</span></span><span style="display:flex;"><span>    value<span style="color:#f92672">=</span>Name(id<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;myfunc&#39;</span>, ctx<span style="color:#f92672">=</span>Load())),
+</span></span><span style="display:flex;"><span>Expr(
+</span></span><span style="display:flex;"><span>    value<span style="color:#f92672">=</span>Call(
+</span></span><span style="display:flex;"><span>        func<span style="color:#f92672">=</span>Name(id<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;x&#39;</span>, ctx<span style="color:#f92672">=</span>Load()))),
+</span></span></code></pre></div><p>The same can be said about the threading example, but the function is in the arguments of the function as shown in the AST :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>Assign(
+</span></span><span style="display:flex;"><span>    targets<span style="color:#f92672">=</span>[
+</span></span><span style="display:flex;"><span>        Name(id<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;threads&#39;</span>, ctx<span style="color:#f92672">=</span>Store())],
+</span></span><span style="display:flex;"><span>    value<span style="color:#f92672">=</span>Call(
+</span></span><span style="display:flex;"><span>        func<span style="color:#f92672">=</span>Name(id<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;Thread&#39;</span>, ctx<span style="color:#f92672">=</span>Load()),
+</span></span><span style="display:flex;"><span>        keywords<span style="color:#f92672">=</span>[
+</span></span><span style="display:flex;"><span>            keyword(
+</span></span><span style="display:flex;"><span>                arg<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;target&#39;</span>,
+</span></span><span style="display:flex;"><span>                value<span style="color:#f92672">=</span>Name(id<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;myfunc&#39;</span>, ctx<span style="color:#f92672">=</span>Load()))]))])
+</span></span></code></pre></div><p>I&rsquo;m assuming that is not that difficult to use the recurive nature of the AST parsing to check assignements and function arguments and compare them to the list of function definition that were already obfuscated, but there would be a lot of edge cases to cover, from list comprehensions, if statements with function calls, generators and everything thing that is legal to put on the <em>RHS</em> of an assigment in Python. I&rsquo;m just happy with my incomplete version here.</p>
+<h4 id="class-definitions">Class Definitions</h4>
+<p>Another issue I&rsquo;ve come across when trying to obfuscate Medusa is class definitions.</p>
+<p>Medusa has multiple commands that are built into the agent. One of them (there are others) is the <code>ps_full</code> command. It uses <code>ctypes</code> and structures to interop with Windows.</p>
+<p>Here&rsquo;s one of the classes <em>structures</em> that this command uses:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">RemotePointer</span>(ctypes<span style="color:#f92672">.</span>_Pointer):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">__getitem__</span>(self, key):
+</span></span><span style="display:flex;"><span>        size <span style="color:#f92672">=</span> <span style="color:#66d9ef">None</span>
+</span></span><span style="display:flex;"><span>        [SNIP]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>_remote_pointer_cache <span style="color:#f92672">=</span> {}
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">RPOINTER</span>(dtype):
+</span></span><span style="display:flex;"><span>    [SNIP]
+</span></span><span style="display:flex;"><span>    ptype <span style="color:#f92672">=</span> type(name, (RemotePointer,), {<span style="color:#e6db74">&#39;_type_&#39;</span>: dtype})
+</span></span></code></pre></div><p>This looks like the same issue as the assignement we saw above, a Class is defined with <code>class</code>, it gets obfuscated because we have a <code>ClassDef</code> visitor method, but the assignement doesn&rsquo;t.</p>
+<p>My solution to this is to only obfuscate the <em>medusa</em> class, and not the others.</p>
+<h4 id="medusa-command-functions">Medusa command functions</h4>
+<p>Since medusa commands are just functions, some of the commands have internal functions, like the <code>socks</code> command with <code>m2a</code> and <code>a2m</code>.</p>
+<p>Like shown previously, function arguments are not parsed by our obfuscator, so code like this (from the <code>socks</code> command) is not obfuscated.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>send_thread <span style="color:#f92672">=</span> Thread(target<span style="color:#f92672">=</span>a2m, args<span style="color:#f92672">=</span>(server_id, sock, ), name<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;a2m:</span><span style="color:#e6db74">{}</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">.</span>format(server_id))
+</span></span><span style="display:flex;"><span>recv_thread <span style="color:#f92672">=</span> Thread(target<span style="color:#f92672">=</span>m2a, args<span style="color:#f92672">=</span>(server_id, sock, ), name<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;m2a:</span><span style="color:#e6db74">{}</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">.</span>format(server_id))
+</span></span></code></pre></div><p>Easiest way around this ? Since Medusa is structured like this:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">medusa</span>():
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">cmd1</span>():
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">#command 1</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">cmd2</span>():
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e"># another command</span>
+</span></span></code></pre></div><p>We can use Mythic&rsquo;s RPC at build time to get all the agent&rsquo;s commands, and only obfuscate them, as we know that they won&rsquo;t be used elsewhere.</p>
+
+    </div>
+</div>
+
+            </main>
+        </div>
+
+
+        <footer class="footer">
+    
+        <span>Built with <a href="https://gohugo.io" class="footerLink">Hugo</a> and custom <a href="https://github.com/LordMathis/hugo-theme-nightfall" class="footerLink">Nightfall</a> theme</span>
+    
+</footer>
+    </div>
+
+</body>
+
+</html>

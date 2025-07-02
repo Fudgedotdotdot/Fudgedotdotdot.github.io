@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Raspberrypi on My New Hugo Site</title>
+    <link>//localhost:1313/categories/raspberrypi/</link>
+    <description>Recent content in Raspberrypi on My New Hugo Site</description>
+    <generator>Hugo</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sat, 28 Jun 2025 00:00:00 +0000</lastBuildDate>
+    <atom:link href="//localhost:1313/categories/raspberrypi/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Building a RaspberryPi pwnbox with Tailscale</title>
+      <link>//localhost:1313/posts/raspberry_penbox/</link>
+      <pubDate>Sat, 28 Jun 2025 00:00:00 +0000</pubDate>
+      <guid>//localhost:1313/posts/raspberry_penbox/</guid>
+      <description>&lt;p&gt;Transform a RaspberryPi into a fully fledged pwnbox, with Wifi pentesting, internal / AD pentesting and remote access in mind.&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

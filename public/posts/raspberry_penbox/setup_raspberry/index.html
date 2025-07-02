@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <title>
+
+ | Fudgedotdotdot&#39;s blog
+</title>
+
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="">
+
+<meta name="generator" content="Hugo 0.147.8">
+
+
+<link rel="canonical" href="//localhost:1313/posts/raspberry_penbox/setup_raspberry/" >
+
+
+
+
+<link href="/css/style.min.b09aa93f26d8e41172a027454356b2b8398e094069be17f6c0a0e3e7d53c8564.css" rel="stylesheet">
+
+
+
+
+</head>
+
+<body>
+
+    <div class="flexWrapper">
+        <header class="headerWrapper">
+    <div class="header">
+        <div>
+            <a class="terminal" href="//localhost:1313/">
+                <span>fudge@penbox.com ~ $</span>
+            </a>
+        </div>
+        <input class="side-menu" type="checkbox" id="side-menu">
+        <label class="hamb" for="side-menu"><span class="hamb-line"></span></label>
+        <nav class="headerLinks">
+            <ul>
+                
+                <li>
+                    <a href="//localhost:1313/about" title="" >
+                        ~/about</a>
+                </li>
+                
+                <li>
+                    <a href="//localhost:1313/posts" title="" >
+                        ~/blog</a>
+                </li>
+                
+            </ul>
+        </nav>
+    </div>
+</header>
+
+
+        <div class="content">
+            <main class="main">
+                
+<div class="postWrapper">
+    <h1></h1>
+    
+    
+    <section class="postMetadata">
+        <dl>
+            
+            
+            
+            
+                <dt>published</dt>
+                
+                <dd><time datetime="0001-01-01">January 1, 1</time></dd>
+            
+            
+        </dl>
+    </section>
+    
+    <div>
+        <!-- # Building a RaspberryPi pwnbox with Tailscale -->
+<h2 id="table-of-contents">Table of Contents</h2>
+<ol>
+<li><a href="#hardware">Hardware</a></li>
+<li><a href="#installation">Installation</a></li>
+<li><a href="#wifi">Wifi</a></li>
+<li><a href="#internal">Internal</a></li>
+<li><a href="#tailscale">Tailscale</a></li>
+</ol>
+<h2 id="hardware">Hardware</h2>
+<p>I&rsquo;m using :</p>
+<ul>
+<li>RaspberryPi: Raspberry Pi 4 Model B</li>
+<li>Antenna: Alfa AWUS036ACH</li>
+</ul>
+<p>There exists a github project for compatible (plug and play) Raspberry Pi Wifi adapters here:
+<a href="https://github.com/morrownr/USB-WiFi/blob/main/home/The_Short_List.md">https://github.com/morrownr/USB-WiFi/blob/main/home/The_Short_List.md</a></p>
+<p>The <em>AWUS036ACH</em> is not on that list (installing drivers went fine, see below).</p>
+<h2 id="wifi">Wifi</h2>
+<p>We&rsquo;ll be using the incredible <a href="https://github.com/s0lst1c3/eaphammer">EAPHammer</a> toolkit and <a href="https://www.aircrack-ng.org/">aircrack-ng</a> for our Wifi pentesting needs.</p>
+<h4 id="wlan0-setup-access-point">Wlan0 setup (access point)</h4>
+<p>We&rsquo;ll configure the builtin wlan interface on the Raspberry with Network Manager. You can configure it when flashing the OS to the SD card, but it will use <em>wpa_supplicant</em>, which might be easier to use instead of forcing the use of NetworkManager, but it seems to work <em>sorta well</em>, so we&rsquo;ll keep NetworkManager for now.</p>
+<p>We can either use <code>nmtui</code> (graphical interface) to configure an access point, or <code>nmcli</code> (cli) with this <a href="https://gist.github.com/narate/d3f001c97e1c981a59f94cd76f041140">gist</a> for the  commands.</p>
+<pre tabindex="0"><code>sudo nmcli con add type wifi ifname wlan0 con-name MGMT_AP autoconnect yes ssid MGMT_AP
+sudo nmcli con modify MGMT_AP 802-11-wireless.mode ap 802-11-wireless.band bg ipv4.method shared
+sudo nmcli con modify MGMT_AP wifi-sec.key-mgmt wpa-psk
+sudo nmcli con modify MGMT_AP wifi-sec.psk &#34;mypassword&#34;
+</code></pre><p>These commands create following configuration file:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#75715e"># /etc/NetworkManager/system-connections/MGMT_AP.nmconnection</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">[connection]</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">id</span><span style="color:#f92672">=</span><span style="color:#e6db74">MGMT_AP</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">uuid</span><span style="color:#f92672">=</span><span style="color:#e6db74">********</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">type</span><span style="color:#f92672">=</span><span style="color:#e6db74">wifi</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">interface-name</span><span style="color:#f92672">=</span><span style="color:#e6db74">wlan0</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">timestamp</span><span style="color:#f92672">=</span><span style="color:#e6db74">1750454070</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">read-only</span><span style="color:#f92672">=</span><span style="color:#e6db74">true # added manually</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">wifi.powersave</span><span style="color:#f92672">=</span><span style="color:#e6db74">0 # added manually</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">[wifi]</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">band</span><span style="color:#f92672">=</span><span style="color:#e6db74">bg</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">mode</span><span style="color:#f92672">=</span><span style="color:#e6db74">ap</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">ssid</span><span style="color:#f92672">=</span><span style="color:#e6db74">MGMT_AP</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">[wifi-security]</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">key-mgmt</span><span style="color:#f92672">=</span><span style="color:#e6db74">wpa-psk</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">psk</span><span style="color:#f92672">=</span><span style="color:#e6db74">**********</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">[ipv4]</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">address1</span><span style="color:#f92672">=</span><span style="color:#e6db74">10.123.123.1/25,10.123.123.1 # added manually</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">method</span><span style="color:#f92672">=</span><span style="color:#e6db74">shared</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">[ipv6]</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">addr-gen-mode</span><span style="color:#f92672">=</span><span style="color:#e6db74">default</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">method</span><span style="color:#f92672">=</span><span style="color:#e6db74">ignore</span>
+</span></span></code></pre></div><p>One important thing to disable is the default <code>dnsmasq</code> service. NetworkManager comes with its own for some reason.</p>
+<pre tabindex="0"><code>sudo systemctl stop dnsmasq
+sudo systemctl disable dnsmasq
+sudo systemctl restart NetworkManager
+</code></pre><h4 id="installing-drivers">Installing Drivers</h4>
+<p>Since our OS is Raspberry Pi OS and not Kali, we don&rsquo;t have the drivers that work out of the box for our Alpha antenna.</p>
+<p>Installing them requires building them from source. I used the maintained version here <a href="https://github.com/lwfinger/rtw88">https://github.com/lwfinger/rtw88</a>. I&rsquo;m currently using the rtw88 drivers installed manually with <em>make, make install, etc&hellip;</em>.</p>
+<h4 id="wlan1-setup-pentesting">Wlan1 Setup (pentesting)</h4>
+<p>Since we are using NetworkManager to manage our interfaces and we need to add a configuration file that prevents the service from managing the Alpha antenna, commonly named <code>wlan1</code>.</p>
+<p>The aircrack-ng README references this configuration option, but we&rsquo;ll use the <em>conf.d</em> directory instead.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#75715e"># /etc/NetworkManager/conf.d/10-unmanaged-wlan1.conf</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">[device-wlan1-unmanage]</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">match-device</span><span style="color:#f92672">=</span><span style="color:#e6db74">interface-name:wlan1</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">managed</span><span style="color:#f92672">=</span><span style="color:#e6db74">0</span>
+</span></span></code></pre></div><p>With this <em>NetworkManager.conf</em> file :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#75715e"># /etc/NetworkManager/NetworkManager.conf</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">[main]</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">plugins</span><span style="color:#f92672">=</span><span style="color:#e6db74">ifupdown</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">[ifupdown]</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">managed</span><span style="color:#f92672">=</span><span style="color:#e6db74">false</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">[device]</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">wifi.scan-rand-mac-address</span><span style="color:#f92672">=</span><span style="color:#e6db74">no</span>
+</span></span></code></pre></div><p>Finally, we should remove the wpa_supplicant service that still has a hand on the device with:</p>
+<pre tabindex="0"><code>sudo systemctl stop wpa_supplicant@wlan1.service
+sudo systemctl disable wpa_supplicant@wlan1.service
+</code></pre><p>I have no idea if it&rsquo;s necessary, but ChatGPT told me too and I, blindly trusting it&rsquo;s output, ran the command. It did stop the issues I was having with the interface being brought back into monitor mode while eaphammer was running.</p>
+<p>With this configuration, we are able to change <code>wlan1</code> from <code>managed</code> mode to <code>monitor</code> mode, run <code>airodump-ng</code>, <code>eaphammer</code> and other wifi tools, but we keep the option to enable NetworkManager&rsquo;s control of <code>wlan1</code> to connect (client mode) to other wifi networks if needed.</p>
+<p>Connecting to another wifi network with <code>wlan1</code> (after setting <em>managed=1</em> and restarting NetworkManager)</p>
+<pre tabindex="0"><code>sudo nmcli device wifi connect ssid password &#34;password&#34; ifname wlan1
+</code></pre><p>Here are a few commands that I found useful.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>$ iw wlan1 info <span style="color:#75715e"># shows if the interface is in monitor or managed mode</span>
+</span></span><span style="display:flex;"><span>Interface wlan1
+</span></span><span style="display:flex;"><span>        ifindex <span style="color:#ae81ff">4</span>
+</span></span><span style="display:flex;"><span>        wdev 0x200000001
+</span></span><span style="display:flex;"><span>        addr 8c:59:c3:d0:37:d2
+</span></span><span style="display:flex;"><span>        type monitor
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># change the type for the interface (note: airodump-ng does that automatically, and eaphammer needs the interface to be in managed mode first)</span>
+</span></span><span style="display:flex;"><span>$ sudo ip link set wlan1 down
+</span></span><span style="display:flex;"><span>$ sudo iw dev wlan1 set type managed
+</span></span><span style="display:flex;"><span>$ sudo ip link set wlan1 up
+</span></span></code></pre></div><h2 id="internal">Internal</h2>
+<p>We&rsquo;ll be using the excellent <a href="https://github.com/ThePorgs/Exegol">Exegol</a> project for our internal pentesting needs. Exegol&rsquo;s documentation is available here <a href="https://docs.exegol.com/">docs</a>.</p>
+<p>I&rsquo;m assuming that you know how to read documentation to install it.</p>
+<p>We are building our own exegol image to add extra tools. There is a setup.sh script that is executed when a container is launched, but I prefer to have my tools built into the image directly.</p>
+<p>In the <code>/home/fudge/.exegol/exegol-images</code>, add a <code>custom.dockerfile</code> file. This is the same format as the other dockerfiles, except we are pulling the <code>free</code> image, and adding our own packages on top of it.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-docker" data-lang="docker"><span style="display:flex;"><span><span style="color:#66d9ef">ARG</span> AD_IMAGE_REGISTRY<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;nwodtuhs/exegol&#34;</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">ARG</span> AD_IMAGE_NAME<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;free&#34;</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">FROM</span><span style="color:#e6db74"> ${AD_IMAGE_REGISTRY}:${AD_IMAGE_NAME}</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">ARG</span> TAG<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;local&#34;</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">ARG</span> VERSION<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;local&#34;</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">ARG</span> BUILD_DATE<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;n/a&#34;</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">LABEL</span> org.exegol.tag<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>TAG<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">LABEL</span> org.exegol.version<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>VERSION<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">LABEL</span> org.exegol.build_date<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>BUILD_DATE<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">LABEL</span> org.exegol.app<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;Exegol&#34;</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">LABEL</span> org.exegol.src_repository<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;https://github.com/ThePorgs/Exegol-images&#34;</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">COPY</span> sources /root/sources/<span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">WORKDIR</span><span style="color:#e6db74"> /root/sources/install</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">RUN</span> echo <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">${</span>TAG<span style="color:#e6db74">}</span><span style="color:#e6db74">-</span><span style="color:#e6db74">${</span>VERSION<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span> &gt; /opt/.exegol_version<span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">RUN</span> chmod +x entrypoint.sh<span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">RUN</span> ./entrypoint.sh package_custom <span style="color:#75715e"># important bit</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">RUN</span> ./entrypoint.sh post_build<span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">WORKDIR</span><span style="color:#e6db74"> /workspace</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010"></span><span style="color:#66d9ef">ENTRYPOINT</span> [<span style="color:#e6db74">&#34;/.exegol/entrypoint.sh&#34;</span>]<span style="color:#960050;background-color:#1e0010">
+</span></span></span></code></pre></div><p>The <code>package_custom</code> script can be added in the <code>~/.exegol/exegol-images/sources/install/</code> directory. It should look like this :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e">#!/bin/bash
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#75715e"># Author: Fudgedotdotdot</span>
+</span></span><span style="display:flex;"><span>source common.sh
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">function</span> install_custom<span style="color:#f92672">()</span> <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">[</span>STUFF HERE<span style="color:#f92672">]</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">function</span> package_custom<span style="color:#f92672">()</span> <span style="color:#f92672">{</span>
+</span></span><span style="display:flex;"><span>    set_env
+</span></span><span style="display:flex;"><span>    local start_time
+</span></span><span style="display:flex;"><span>    local end_time
+</span></span><span style="display:flex;"><span>    start_time<span style="color:#f92672">=</span><span style="color:#66d9ef">$(</span>date +%s<span style="color:#66d9ef">)</span>
+</span></span><span style="display:flex;"><span>    install_custom
+</span></span><span style="display:flex;"><span>    post_install
+</span></span><span style="display:flex;"><span>    end_time<span style="color:#f92672">=</span><span style="color:#66d9ef">$(</span>date +%s<span style="color:#66d9ef">)</span>
+</span></span><span style="display:flex;"><span>    local elapsed_time<span style="color:#f92672">=</span><span style="color:#66d9ef">$((</span>end_time <span style="color:#f92672">-</span> start_time<span style="color:#66d9ef">))</span>
+</span></span><span style="display:flex;"><span>    colorecho <span style="color:#e6db74">&#34;Package custom completed in </span>$elapsed_time<span style="color:#e6db74"> seconds.&#34;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">}</span>
+</span></span></code></pre></div><p>I sure you don&rsquo;t need to follow this exact format, but I&rsquo;ll let you try it out yourself.</p>
+<p>Building the image is simple, from the <code>exegol-images</code> directory, run the following command and choose <code>custom</code>.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#ae81ff">$ exegol build custom --build-path . --build-log log.txt</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">🐶 Build profiles</span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">┌───────────────┐</span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">│ full          │</span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">│ custom        │</span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">│ light         │</span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">│ ad            │</span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">│ osint         │</span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">│ web           │</span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">└───────────────┘</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">[?] Select a build profile (full)</span>: <span style="color:#ae81ff">custom</span>
+</span></span></code></pre></div><p>Once the image is built, the custom image is shown as <code>Local image</code>.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#ae81ff">$ exegol info</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">🛸 Available images</span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">┌─────────┬──────────┬───────────────────────┐</span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">│ Image   │ Size     │ Status                │</span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">├─────────┼──────────┼───────────────────────┤</span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">│ custom  │ 47.9 GB  │ Local image           │</span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">│ free    │ 47.8 GB  │ Up to date (v.3.1.6)  │</span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">│ ad      │ 27.51 GB │ Pro / Enterprise only │</span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">│ full    │ 39.1 GB  │ Pro / Enterprise only │</span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">│ light   │ 13.93 GB │ Pro / Enterprise only │</span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">│ web     │ 16.68 GB │ Pro / Enterprise only │</span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">│ osint   │ 9.79 GB  │ Pro / Enterprise only │</span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">│ nightly │ 39.74 GB │ Pro / Enterprise only │</span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">└─────────┴──────────┴───────────────────────┘</span>
+</span></span></code></pre></div><p>The image can be started with <code>exegol start &lt;name&gt; custom</code>.</p>
+<h2 id="tailscale">TailScale</h2>
+<p>Content of the subheading 4</p>
+
+    </div>
+</div>
+
+            </main>
+        </div>
+
+
+        <footer class="footer">
+    
+        <span>Built with <a href="https://gohugo.io" class="footerLink">Hugo</a> and custom <a href="https://github.com/LordMathis/hugo-theme-nightfall" class="footerLink">Nightfall</a> theme</span>
+    
+</footer>
+    </div>
+
+</body>
+
+</html>
