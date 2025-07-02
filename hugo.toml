@@ -1,6 +1,6 @@
 baseURL = ''
 languageCode = 'en-us'
-title = 'My New Hugo Site'
+title = "Fudgedotdotdot's Blog"
 theme = "nightfall"
 
 [markup]
@@ -18,10 +18,13 @@ theme = "nightfall"
     weight = 0
     url = "posts"
 
+[caches]
+  [caches.images]
+    dir = ':cacheDir/images'
 
 [params]
 user = "fudge"
-hostname = "penbox.com"
+hostname = "pwnbox.com"
 published = true
 readingTime = false
 footerHtml = 'Built with <a href="https://gohugo.io" class="footerLink">Hugo</a> and custom <a href="https://github.com/LordMathis/hugo-theme-nightfall" class="footerLink">Nightfall</a> theme'
