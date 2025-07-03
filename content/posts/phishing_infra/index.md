@@ -600,7 +600,7 @@ I'm going to make changes to the previous configuration for the Gophish and Post
 
 We'll have to modify the docker compose file from the Evilginx2 setup to include the Gophish container. 
 
-The network is hardcoded to be *172.18.0.0/16* with the name *phishnetwork* and the host file of both containers is configured to resolve *host.docker.internal* to *172.18.0.1*. We'll see why later. 
+The network is hardcoded to be *172.18.0.0/16* with the name *phishnetwork* and the host file of both containers is configured to resolve *host.docker.internal* to *172.18.0.1*.
 ```yaml
 services:
   evilginx2:
@@ -641,23 +641,21 @@ networks:
           gateway: 172.18.0.1
 ```
 
-This network also allows us to use container names to resolve while inside the network, making evilginx communicate with gophish much easier to configure. 
+This network also allows us to use container names to resolve while inside the network, making evilginx communicate with gophish with the *gophish* container name and gophish's SMTP configuration use *host.docker.internal* as an email server. 
 
 
-Next, we'll setup another SMTP ssh tunnel like the HTTP one earlier that listens on localhost:25. 
-
-Now we need to tell `iptables` to allow the gophish container to talk to this forwarded port. 
+Next, we'll setup another SMTP ssh tunnel like the HTTP one earlier that listens on localhost:25, and then add a `iptables` rule to allow the gophish container to talk to this forwarded port. 
 
 ```yaml
 - name: Add DNAT rule for phishnetwork (docker -> localhost tunnel)
   ansible.builtin.command: >
     iptables -t nat -A PREROUTING -i phishnetwork -p tcp --dport 25 -j DNAT --to-destination 127.0.0.1:25
 
-- name: Allowing traffic from phishnetwork to localhost
+- name: Allowing traffic from phishnetwork port 25
   ansible.builtin.command: >
     iptables -A INPUT -p tcp --dport 25 -i phishnetwork -j ACCEPT
 ```
-Finally, have to tell the kernel to allow prerouting from an internal address *172.18.0.1 (the docker phishnetwork)* towards localhost by setting `net.ipv4.conf.phishnetwork.route_localnet=1`. We can be fancy and add a conf file to the *sysctl.d* directory and reload the `sysctl` settings.  
+Finally, we have to tell the kernel to allow prerouting from an internal address *172.18.0.1 (the docker phishnetwork)* towards localhost by setting `net.ipv4.conf.phishnetwork.route_localnet=1`. We can be fancy and add a conf file to the *sysctl.d* directory and reload the `sysctl` settings.  
 
 ```yaml
 - name: Enable sysctl route_localnet for phishnetwork
@@ -674,14 +672,14 @@ Finally, have to tell the kernel to allow prerouting from an internal address *1
 ```
 
 
-This network configuration allows the gophish docker container to talk to the localhost port that redirects traffic towards the postfix server listening on the redirector server. 
+This network configuration allows the gophish docker container to talk to *host.docker.internal*, which resolves to *172.18.0.1*, our iptable rule then redirects the traffic to the ssh local port forward that itself redirects traffic towards the postfix server listening on the redirector server. 
 
 Using gophish this way allows us to send phishing emails using it's easy-to-use interface, and if we use the [Gophish](https://github.com/kgretzky/gophish) fork from **kgretzky**, we can even get statistics back from evilginx (email open, clicked link, submitted data).
 
-The admin interface on Gopish is accessible by running a local port forward with ssh like so : `ssh root@<ip> -L 8083:localhost:8083`
+The admin interface on gophish is accessible by running a local port forward with ssh like so : `ssh root@<ip> -L 8083:localhost:8083`
 
 ## Postfix configuration
-Postfix will be configured to support client TLS *(with STARTTLS)*, a catchall blackhole email address to prevent replies to our phishing emails from generating bounces that inform the user of the phishing attempt and finally generate DKIM keys and configure them automatically on DigitalOcean for an 10/10 mail score.
+Postfix will be configured to support client TLS *(with STARTTLS)*, a catchall blackhole email address to prevent replies to our phishing emails from generating bounces that inform the user of the phishing attempt and automatic DKIM keys generation and configuration by adding them automatically on DigitalOcean for an 10/10 mail score.
 
 I've forked [https://github.com/catatnight/docker-postfix](https://github.com/catatnight/docker-postfix) to add these additional features and pushed the image to [DockerHub](https://hub.docker.com/r/fudgedotdotdot/postfix). You can check out the modifications [here](https://github.com/Fudgedotdotdot/docker-postfix/blob/e6b8da74f5d42f4c4c7cc8a6e4f769df6b22174a/assets/install.sh).
 

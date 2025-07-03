@@ -78,7 +78,7 @@ sudo systemctl restart NetworkManager
 ```
 
 #### Installing Drivers
-Since our OS is Raspberry Pi OS and not Kali, we don't have the drivers that work out of the box for our Alpha antenna. 
+Our OS is Raspberry Pi OS and not Kali, we don't have the drivers that work out of the box for our Alpha antenna. 
 
 
 Installing them requires building them from source. I used the maintained version here [https://github.com/lwfinger/rtw88](https://github.com/lwfinger/rtw88). I'm currently using the rtw88 drivers installed manually with *make, make install, etc...*. 
@@ -87,7 +87,7 @@ Installing them requires building them from source. I used the maintained versio
 
 #### Wlan1 Setup (pentesting)
 
-Since we are using NetworkManager to manage our interfaces and we need to add a configuration file that prevents the service from managing the Alpha antenna, commonly named *wlan1*.
+We are using NetworkManager to manage our interfaces and we need to add a configuration file that prevents the service from managing the Alpha antenna, commonly named *wlan1*.
 
 The aircrack-ng README references the *NetworkManager.conf* file, but we'll its *conf.d* directory instead.
 
