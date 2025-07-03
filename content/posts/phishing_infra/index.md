@@ -764,8 +764,8 @@ For the TLS configuration, running a network capture shows the difference betwee
 <div style="display: flex; justify-content: center; margin-top: 20px;">
   <table>
     <tr>
-      <td style="text-align: center;"><strong>TLS</strong></td>
       <td style="text-align: center;"><strong>Non-TLS</strong></td>
+      <td style="text-align: center;"><strong>TLS</strong></td>
     </tr>
     <tr>
       <td style="text-align: center;">
