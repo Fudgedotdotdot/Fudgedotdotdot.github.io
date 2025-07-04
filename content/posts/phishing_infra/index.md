@@ -335,14 +335,14 @@ Evilginx2 has the option to redirect blacklisted IPs to an unauth URL, protectin
 Searching Google and Shodan for this HTML doesn't return any interesting results, but GitHub search finds this :
 
 
-![github_search](./imgs/github_search.png)
+![github_search](./github_search.png)
 
 
 
 
 We should change the code in *http_proxy.go* to return a 301 :
 
-![redirect](./imgs/redirect.png)
+![redirect](./redirect.png)
 
 
 
